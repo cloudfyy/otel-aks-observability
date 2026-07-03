@@ -37,7 +37,7 @@
 # 1) 创建应用命名空间并放通 OTel 客户端流量
 kubectl create namespace apps-prod --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-prod otel-client=true --overwrite
-kubectl apply -f otel/prod/networkpolicy.prod.yaml
+kubectl apply -f ./prod/networkpolicy.prod.yaml
 
 # 2) 创建密钥
 kubectl create secret generic appinsights-conn \
@@ -46,23 +46,23 @@ kubectl create secret generic appinsights-conn \
   --dry-run=client -o yaml | kubectl apply -f -
 
 # 3) 通过 cert-manager 创建 TLS 证书与密钥
-kubectl apply -f otel/prod/collector-tls.prod.yaml
+kubectl apply -f ./prod/collector-tls.prod.yaml
 
 # 4) 部署 Gateway（release 名称：otel-gateway）
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
-  -f otel/prod/gateway-values.prod.yaml
+  -f ./prod/gateway-values.prod.yaml
 
 # 5) 部署 Agent（release 名称：otel-agent）
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
-  -f otel/prod/agent-values.prod.yaml
+  -f ./prod/agent-values.prod.yaml
 
 # 6) 应用 Instrumentation
-kubectl apply -f otel/prod/inst-crd-dotnet.prod.yaml
-kubectl apply -f otel/prod/inst-crd-python.prod.yaml
+kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
+kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
 # 7) 验证
 kubectl get pods -n observability
@@ -76,7 +76,7 @@ kubectl get certificate -n observability
 # 1) 创建应用命名空间并放通 OTel 客户端流量
 kubectl create namespace apps-prod --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-prod otel-client=true --overwrite
-kubectl apply -f otel/prod/networkpolicy.prod.yaml
+kubectl apply -f ./prod/networkpolicy.prod.yaml
 
 # 2) 创建密钥
 kubectl create secret generic appinsights-conn `
@@ -85,23 +85,23 @@ kubectl create secret generic appinsights-conn `
   --dry-run=client -o yaml | kubectl apply -f -
 
 # 3) 通过 cert-manager 创建 TLS 证书与密钥
-kubectl apply -f otel/prod/collector-tls.prod.yaml
+kubectl apply -f ./prod/collector-tls.prod.yaml
 
 # 4) 部署 Gateway（release 名称：otel-gateway）
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
-  -f otel/prod/gateway-values.prod.yaml
+  -f ./prod/gateway-values.prod.yaml
 
 # 5) 部署 Agent（release 名称：otel-agent）
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
-  -f otel/prod/agent-values.prod.yaml
+  -f ./prod/agent-values.prod.yaml
 
 # 6) 应用 Instrumentation
-kubectl apply -f otel/prod/inst-crd-dotnet.prod.yaml
-kubectl apply -f otel/prod/inst-crd-python.prod.yaml
+kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
+kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
 # 7) 验证
 kubectl get pods -n observability
@@ -237,20 +237,20 @@ flowchart LR
 
 在执行任何 OTel 升级前，请先固化当前状态，确保回滚可确定执行。
 
-0. 开始升级前，先在 `otel/prod/version-baseline.current.md` 更新当前测试软件版本（chart/image/operator/cert-manager/k8s/helm）。
+0. 开始升级前，先在 `./prod/version-baseline.current.md` 更新当前测试软件版本（chart/image/operator/cert-manager/k8s/helm）。
 
 1. 导出当前 release values（即第 2 项所需基线数据）：将集群当前生效配置保存为回滚基线。
 
 ```bash
-mkdir -p otel/prod/upgrade-baseline
-helm get values otel-gateway -n observability -o yaml > otel/prod/upgrade-baseline/otel-gateway.values.current.yaml
-helm get values otel-agent -n observability -o yaml > otel/prod/upgrade-baseline/otel-agent.values.current.yaml
+mkdir -p ./prod/upgrade-baseline
+helm get values otel-gateway -n observability -o yaml > ./prod/upgrade-baseline/otel-gateway.values.current.yaml
+helm get values otel-agent -n observability -o yaml > ./prod/upgrade-baseline/otel-agent.values.current.yaml
 ```
 
 ```powershell
-New-Item -ItemType Directory -Force -Path otel/prod/upgrade-baseline | Out-Null
-helm get values otel-gateway -n observability -o yaml | Out-File -Encoding utf8 otel/prod/upgrade-baseline/otel-gateway.values.current.yaml
-helm get values otel-agent -n observability -o yaml | Out-File -Encoding utf8 otel/prod/upgrade-baseline/otel-agent.values.current.yaml
+New-Item -ItemType Directory -Force -Path ./prod/upgrade-baseline | Out-Null
+helm get values otel-gateway -n observability -o yaml | Out-File -Encoding utf8 ./prod/upgrade-baseline/otel-gateway.values.current.yaml
+helm get values otel-agent -n observability -o yaml | Out-File -Encoding utf8 ./prod/upgrade-baseline/otel-agent.values.current.yaml
 ```
 
 2. 记录当前 chart 版本 / 镜像 tag / operator 版本（第 3 项）。

@@ -20,12 +20,12 @@ Update this file before and after each upgrade test.
 
 ### Files with version markers
 
-- `otel/prod/gateway-values.prod.yaml`
-- `otel/prod/agent-values.prod.yaml`
-- `otel/prod/inst-crd-dotnet.prod.yaml`
-- `otel/prod/inst-crd-python.prod.yaml`
-- `otel/prod/networkpolicy.prod.yaml`
-- `otel/prod/collector-tls.prod.yaml`
+- `./prod/gateway-values.prod.yaml`
+- `./prod/agent-values.prod.yaml`
+- `./prod/inst-crd-dotnet.prod.yaml`
+- `./prod/inst-crd-python.prod.yaml`
+- `./prod/networkpolicy.prod.yaml`
+- `./prod/collector-tls.prod.yaml`
 
 ## Runtime Snapshot (fill from cluster)
 

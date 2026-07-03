@@ -37,7 +37,7 @@
 # 1) Create application namespace and allow OTel client traffic
 kubectl create namespace apps-prod --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-prod otel-client=true --overwrite
-kubectl apply -f otel/prod/networkpolicy.prod.yaml
+kubectl apply -f ./prod/networkpolicy.prod.yaml
 
 # 2) Secret
 kubectl create secret generic appinsights-conn \
@@ -46,23 +46,23 @@ kubectl create secret generic appinsights-conn \
   --dry-run=client -o yaml | kubectl apply -f -
 
 # 3) TLS certificates and secrets via cert-manager
-kubectl apply -f otel/prod/collector-tls.prod.yaml
+kubectl apply -f ./prod/collector-tls.prod.yaml
 
 # 4) Gateway (release name: otel-gateway)
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
-  -f otel/prod/gateway-values.prod.yaml
+  -f ./prod/gateway-values.prod.yaml
 
 # 5) Agent (release name: otel-agent)
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
-  -f otel/prod/agent-values.prod.yaml
+  -f ./prod/agent-values.prod.yaml
 
 # 6) Instrumentation
-kubectl apply -f otel/prod/inst-crd-dotnet.prod.yaml
-kubectl apply -f otel/prod/inst-crd-python.prod.yaml
+kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
+kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
 # 7) Verify
 kubectl get pods -n observability
@@ -76,7 +76,7 @@ kubectl get certificate -n observability
 # 1) Create application namespace and allow OTel client traffic
 kubectl create namespace apps-prod --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-prod otel-client=true --overwrite
-kubectl apply -f otel/prod/networkpolicy.prod.yaml
+kubectl apply -f ./prod/networkpolicy.prod.yaml
 
 # 2) Secret
 kubectl create secret generic appinsights-conn `
@@ -85,23 +85,23 @@ kubectl create secret generic appinsights-conn `
   --dry-run=client -o yaml | kubectl apply -f -
 
 # 3) TLS certificates and secrets via cert-manager
-kubectl apply -f otel/prod/collector-tls.prod.yaml
+kubectl apply -f ./prod/collector-tls.prod.yaml
 
 # 4) Gateway (release name: otel-gateway)
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
-  -f otel/prod/gateway-values.prod.yaml
+  -f ./prod/gateway-values.prod.yaml
 
 # 5) Agent (release name: otel-agent)
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
-  -f otel/prod/agent-values.prod.yaml
+  -f ./prod/agent-values.prod.yaml
 
 # 6) Instrumentation
-kubectl apply -f otel/prod/inst-crd-dotnet.prod.yaml
-kubectl apply -f otel/prod/inst-crd-python.prod.yaml
+kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
+kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
 # 7) Verify
 kubectl get pods -n observability
@@ -237,20 +237,20 @@ flowchart LR
 
 Before any OTel upgrade, capture current state so rollback is deterministic.
 
-0. Update `otel/prod/version-baseline.current.md` with current test software versions (chart/image/operator/cert-manager/k8s/helm) before starting upgrade.
+0. Update `./prod/version-baseline.current.md` with current test software versions (chart/image/operator/cert-manager/k8s/helm) before starting upgrade.
 
 1. Export current release values (this is what item #2 means): save the effective values currently running in cluster as your rollback baseline.
 
 ```bash
-mkdir -p otel/prod/upgrade-baseline
-helm get values otel-gateway -n observability -o yaml > otel/prod/upgrade-baseline/otel-gateway.values.current.yaml
-helm get values otel-agent -n observability -o yaml > otel/prod/upgrade-baseline/otel-agent.values.current.yaml
+mkdir -p ./prod/upgrade-baseline
+helm get values otel-gateway -n observability -o yaml > ./prod/upgrade-baseline/otel-gateway.values.current.yaml
+helm get values otel-agent -n observability -o yaml > ./prod/upgrade-baseline/otel-agent.values.current.yaml
 ```
 
 ```powershell
-New-Item -ItemType Directory -Force -Path otel/prod/upgrade-baseline | Out-Null
-helm get values otel-gateway -n observability -o yaml | Out-File -Encoding utf8 otel/prod/upgrade-baseline/otel-gateway.values.current.yaml
-helm get values otel-agent -n observability -o yaml | Out-File -Encoding utf8 otel/prod/upgrade-baseline/otel-agent.values.current.yaml
+New-Item -ItemType Directory -Force -Path ./prod/upgrade-baseline | Out-Null
+helm get values otel-gateway -n observability -o yaml | Out-File -Encoding utf8 ./prod/upgrade-baseline/otel-gateway.values.current.yaml
+helm get values otel-agent -n observability -o yaml | Out-File -Encoding utf8 ./prod/upgrade-baseline/otel-agent.values.current.yaml
 ```
 
 2. Record current chart version / image tag / operator version (item #3).

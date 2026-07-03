@@ -37,15 +37,15 @@ kubectl label namespace apps-dev otel-client=true --overwrite
 # 2) 部署单 Collector（release 名称：otel-collector）
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
   -n observability --create-namespace \
-  -f otel/dev/otle-gateway-myvalues.yaml
+  -f ./dev/otle-gateway-myvalues.yaml
 
 # 3) 应用 Instrumentation CRD
-kubectl apply -f otel/dev/inst-crd-dotnet.yaml
-kubectl apply -f otel/dev/inst-crd-python.yaml
+kubectl apply -f ./dev/inst-crd-dotnet.yaml
+kubectl apply -f ./dev/inst-crd-python.yaml
 
 # 4) 部署示例应用
-kubectl apply -n apps-dev -f otel/dev/otelapidemo-dotnet.yaml
-kubectl apply -n apps-dev -f otel/dev/otelapidemo-python.yaml
+kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
+kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
 # 5) 验证基础状态
 kubectl get pods -n observability
@@ -64,15 +64,15 @@ kubectl label namespace apps-dev otel-client=true --overwrite
 # 2) 部署单 Collector（release 名称：otel-collector）
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
   -n observability --create-namespace `
-  -f otel/dev/otle-gateway-myvalues.yaml
+  -f ./dev/otle-gateway-myvalues.yaml
 
 # 3) 应用 Instrumentation CRD
-kubectl apply -f otel/dev/inst-crd-dotnet.yaml
-kubectl apply -f otel/dev/inst-crd-python.yaml
+kubectl apply -f ./dev/inst-crd-dotnet.yaml
+kubectl apply -f ./dev/inst-crd-python.yaml
 
 # 4) 部署示例应用
-kubectl apply -n apps-dev -f otel/dev/otelapidemo-dotnet.yaml
-kubectl apply -n apps-dev -f otel/dev/otelapidemo-python.yaml
+kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
+kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
 # 5) 验证基础状态
 kubectl get pods -n observability
