@@ -1,0 +1,16 @@
+opentelemetry-collector:
+  config:
+    exporters:
+      azuremonitor:
+        # 推荐 connection_string，不要再用 instrumentation_key
+        connection_string: "<APP_INSIGHTS_CONNECTION_STRING>"
+
+    service:
+      pipelines:
+        traces:
+          # 注意：数组是“替换”不是“合并”，要保留 spanmetrics
+          exporters: [spanmetrics, azuremonitor]
+        metrics:
+          exporters: [azuremonitor]
+        logs:
+          exporters: [azuremonitor]

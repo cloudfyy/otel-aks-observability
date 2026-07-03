@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otelapidemo-python
+  labels:
+    app: otelapidemo-python
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: otelapidemo-python
+  template:
+    metadata:
+      labels:
+        app: otelapidemo-python
+      annotations:
+        instrumentation.opentelemetry.io/inject-python: "observability/python-auto"
+    spec:
+      containers:
+        - name: otelapidemo-python
+          image: qiqiacr.azurecr.io/otelapidemo-python:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: OTEL_SERVICE_NAME
+              value: weatherforecast-api-python
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otelapidemo-python
+  labels:
+    app: otelapidemo-python
+spec:
+  type: LoadBalancer
+  selector:
+    app: otelapidemo-python
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP

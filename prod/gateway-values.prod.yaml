@@ -1,0 +1,138 @@
+# config-version: v1.0.0
+# config-updated: 2026-07-03
+mode: deployment
+replicaCount: 3
+
+serviceAccount:
+  create: true
+  name: otel-gateway
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.154.0"
+
+ports:
+  otlp:
+    enabled: true
+  otlp-http:
+    enabled: true
+  jaeger-compact:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  zipkin:
+    enabled: false
+
+resources:
+  requests:
+    cpu: 300m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+service:
+  type: ClusterIP
+
+extraEnvs:
+  - name: APPLICATIONINSIGHTS_CONNECTION_STRING
+    valueFrom:
+      secretKeyRef:
+        name: appinsights-conn
+        key: connection_string
+
+extraVolumes:
+  - name: otel-gateway-tls
+    secret:
+      secretName: otel-gateway-tls
+
+extraVolumeMounts:
+  - name: otel-gateway-tls
+    mountPath: /etc/otel/tls
+    readOnly: true
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+          tls:
+            cert_file: /etc/otel/tls/tls.crt
+            key_file: /etc/otel/tls/tls.key
+            client_ca_file: /etc/otel/tls/ca.crt
+        http:
+          endpoint: 0.0.0.0:4318
+          tls:
+            cert_file: /etc/otel/tls/tls.crt
+            key_file: /etc/otel/tls/tls.key
+            client_ca_file: /etc/otel/tls/ca.crt
+
+  processors:
+    memory_limiter:
+      check_interval: 1s
+      limit_percentage: 75
+      spike_limit_percentage: 15
+    batch:
+      timeout: 5s
+      send_batch_size: 1024
+      send_batch_max_size: 2048
+
+  exporters:
+    azuremonitor:
+      connection_string: ${env:APPLICATIONINSIGHTS_CONNECTION_STRING}
+      timeout: 15s
+      retry_on_failure:
+        enabled: true
+        initial_interval: 1s
+        max_interval: 30s
+        max_elapsed_time: 300s
+      sending_queue:
+        enabled: true
+        num_consumers: 8
+        queue_size: 10000
+
+  extensions:
+    health_check:
+      endpoint: 0.0.0.0:13133
+
+  service:
+    extensions: [health_check]
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [azuremonitor]
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [azuremonitor]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [azuremonitor]

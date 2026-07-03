@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otelapidemo
+  labels:
+    app: otelapidemo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: otelapidemo
+  template:
+    metadata:
+      labels:
+        app: otelapidemo
+      annotations:
+        instrumentation.opentelemetry.io/inject-dotnet: "observability/dotnet-auto"
+    spec:
+      containers:
+        - name: otelapidemo
+          image: qiqiacr.azurecr.io/otelapidemo:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Production
+            - name: ASPNETCORE_URLS
+              value: http://+:8080
+            - name: OTEL_SERVICE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app']
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 1654
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otelapidemo
+  labels:
+    app: otelapidemo
+spec:
+  type: LoadBalancer
+  selector:
+    app: otelapidemo
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

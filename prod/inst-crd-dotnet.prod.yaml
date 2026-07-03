@@ -1,0 +1,31 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: dotnet-auto-prod
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  exporter:
+    endpoint: http://otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317
+  propagators:
+    - tracecontext
+    - baggage
+  sampler:
+    type: parentbased_traceidratio
+    argument: "0.1"
+  dotnet:
+    env:
+      - name: OTEL_EXPORTER_OTLP_PROTOCOL
+        value: grpc
+      - name: OTEL_TRACES_SAMPLER
+        value: parentbased_traceidratio
+      - name: OTEL_TRACES_SAMPLER_ARG
+        value: "0.1"
+      - name: OTEL_LOGS_EXPORTER
+        value: otlp
+      - name: OTEL_DOTNET_AUTO_LOGS_ENABLED
+        value: "true"
+      - name: OTEL_RESOURCE_ATTRIBUTES
+        value: deployment.environment.name=prod

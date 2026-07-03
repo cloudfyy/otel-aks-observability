@@ -1,0 +1,140 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-observability
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-apps-to-otel-agent-otlp
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: otel-agent
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              otel-client: "true"
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-agent-to-gateway-otlp
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: otel-agent
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: otel-gateway
+      ports:
+        - protocol: TCP
+          port: 4317
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-ingress-from-agent-otlp
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: otel-gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: otel-agent
+      ports:
+        - protocol: TCP
+          port: 4317
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-agent-egress-dns
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: otel-agent
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-egress-https-and-dns
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: otel-gateway
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,95 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: otel-selfsigned
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: otel-root-ca
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  isCA: true
+  commonName: otel-root-ca
+  secretName: otel-root-ca
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: otel-selfsigned
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: otel-ca-issuer
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  ca:
+    secretName: otel-root-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: otel-gateway-tls
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  secretName: otel-gateway-tls
+  duration: 2160h
+  renewBefore: 360h
+  commonName: otel-gateway-opentelemetry-collector.observability.svc.cluster.local
+  dnsNames:
+    - otel-gateway-opentelemetry-collector
+    - otel-gateway-opentelemetry-collector.observability
+    - otel-gateway-opentelemetry-collector.observability.svc
+    - otel-gateway-opentelemetry-collector.observability.svc.cluster.local
+  usages:
+    - server auth
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: otel-ca-issuer
+    kind: Issuer
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: otel-agent-client-tls
+  namespace: observability
+  annotations:
+    otel.config/version: "v1.0.0"
+    otel.config/updated: "2026-07-03"
+spec:
+  secretName: otel-agent-client-tls
+  duration: 2160h
+  renewBefore: 360h
+  commonName: otel-agent
+  dnsNames:
+    - otel-agent-opentelemetry-collector
+    - otel-agent-opentelemetry-collector.observability
+    - otel-agent-opentelemetry-collector.observability.svc
+    - otel-agent-opentelemetry-collector.observability.svc.cluster.local
+  usages:
+    - client auth
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: otel-ca-issuer
+    kind: Issuer

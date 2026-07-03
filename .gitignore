@@ -1,0 +1,78 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+coverage/
+.npm/
+
+# .NET
+**/bin/
+**/obj/
+**/.vs/
+*.user
+*.suo
+
+# Logs and temp
+*.log
+*.out
+*.err
+*.pid
+*.tmp
+*.bak
+
+# Environment and local config
+.env
+.env.*
+!.env.example
+*.local
+
+# Certificates and keys
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+*.cer
+*.csr
+*.jks
+*.keystore
+id_rsa
+id_dsa
+id_ed25519
+
+# Secret-like files
+*secret*.yaml
+*secret*.yml
+*secrets*.yaml
+*secrets*.yml
+*credentials*.json
+*service-account*.json
+passwords.txt
+secrets.txt
+tokens.txt
+apikeys.txt
+connection-strings.txt
+
+# Terraform / IaC secrets
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
