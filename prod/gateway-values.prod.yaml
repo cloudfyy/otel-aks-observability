@@ -107,11 +107,6 @@ config:
     azuremonitor:
       connection_string: ${env:APPLICATIONINSIGHTS_CONNECTION_STRING}
       timeout: 15s
-      retry_on_failure:
-        enabled: true
-        initial_interval: 1s
-        max_interval: 30s
-        max_elapsed_time: 300s
       sending_queue:
         enabled: true
         num_consumers: 8

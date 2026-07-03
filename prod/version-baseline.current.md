@@ -22,6 +22,7 @@ Update this file before and after each upgrade test.
 
 - `./prod/gateway-values.prod.yaml`
 - `./prod/agent-values.prod.yaml`
+- `./prod/otel-agent-rbac.prod.yaml`
 - `./prod/inst-crd-dotnet.prod.yaml`
 - `./prod/inst-crd-python.prod.yaml`
 - `./prod/networkpolicy.prod.yaml`
