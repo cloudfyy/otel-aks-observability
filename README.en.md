@@ -19,18 +19,18 @@ Main capabilities:
 - [dev/](dev/)
   - Development and integration examples (primarily single Collector)
   - Includes .NET/Python Instrumentation, sample app manifests, and collector values
-  - Reference: [dev/README.dev.md](dev/README.dev.md)
+  - Reference: [dev/README.dev.en.md](dev/README.dev.en.md)
 - [prod/](prod/)
   - Production baseline configuration (agent + gateway)
   - Includes NetworkPolicy, cert-manager certificates, production values, alerts, and version ledger
-  - Reference: [prod/README.prod.md](prod/README.prod.md)
+  - Reference: [prod/README.prod.en.md](prod/README.prod.en.md)
 - [otelapidemo/](otelapidemo/)
   - Sample application project for validating auto-instrumentation and end-to-end telemetry flow
 
 ## Recommended Reading Order
 
-1. Start with [dev/README.dev.md](dev/README.dev.md) to validate the single-collector setup.
-2. Continue with [prod/README.prod.md](prod/README.prod.md) to deploy the production baseline (agent + gateway).
+1. Start with [dev/README.dev.en.md](dev/README.dev.en.md) to validate the single-collector setup.
+2. Continue with [prod/README.prod.en.md](prod/README.prod.en.md) to deploy the production baseline (agent + gateway).
 3. Before upgrades/changes, update [prod/version-baseline.current.md](prod/version-baseline.current.md) and run Upgrade Pre-Checks.
 
 ## Key Files

@@ -1,8 +1,8 @@
-# OTel 生产部署
+# OTel Production Depolyment
 
-[中文首页](../README.md) | [English Home](../README.en.md) | [English Doc](README.prod.en.md)
+[中文入口](../README.md) | [English Home](../README.en.md) | [中文文档名](README.prod.md)
 
-## 文件清单
+## Files
 
 - networkpolicy.prod.yaml
 - collector-tls.prod.yaml
@@ -13,108 +13,108 @@
 - alerts-kql.prod.md
 - version-baseline.current.md
 
-## 前置条件
+## Prerequisites
 
-1. 已具备 AKS 集群访问权限，并已正确配置 `kubectl` 与 `helm`。
-2. 集群中 `cert-manager` 已安装且状态正常。
-3. 必要命名空间已存在（`observability`、`apps-prod`），且应用命名空间已标记 `otel-client=true`。
-4. `observability` 命名空间中已存在 App Insights 连接串密钥（`appinsights-conn`）。
-5. RBAC 权限允许在 `observability` 命名空间读取并更新 release。
+1. Access to AKS cluster with `kubectl` and `helm` configured.
+2. `cert-manager` installed and healthy in cluster.
+3. Required namespaces exist (`observability`, `apps-prod`) and application namespace is labeled with `otel-client=true`.
+4. App Insights connection string secret exists (`appinsights-conn`) in `observability`.
+5. RBAC allows you to read and update releases in `observability` namespace.
 
-## 部署顺序
+## Deploy Order
 
-1. 标记客户端命名空间并应用 NetworkPolicy。
-2. 创建或更新 Application Insights 连接串密钥。
-3. 应用 cert-manager TLS 清单，生成 gateway 与 agent 证书。
-4. 部署 gateway collector（Deployment，多副本）。
-5. 部署 agent collector（DaemonSet）。
-6. 应用 Instrumentation CRD。
-7. 更新应用注解，切换到 dotnet-auto-prod。
+1. Label client namespaces and apply NetworkPolicy.
+2. Create/update Application Insights connection string secret.
+3. Apply cert-manager TLS manifests for gateway and agent certificates.
+4. Deploy gateway collector (Deployment, multi-replica).
+5. Deploy agent collector (DaemonSet).
+6. Apply Instrumentation CRD.
+7. Update application annotation to use dotnet-auto-prod.
 
-## 命令
+## Commands
 
 ```bash
-# 1) 创建应用命名空间并放通 OTel 客户端流量
+# 1) Create application namespace and allow OTel client traffic
 kubectl create namespace apps-prod --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-prod otel-client=true --overwrite
 kubectl apply -f otel/prod/networkpolicy.prod.yaml
 
-# 2) 创建密钥
+# 2) Secret
 kubectl create secret generic appinsights-conn \
   -n observability \
   --from-literal=connection_string="<APP_INSIGHTS_CONNECTION_STRING>" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-# 3) 通过 cert-manager 创建 TLS 证书与密钥
+# 3) TLS certificates and secrets via cert-manager
 kubectl apply -f otel/prod/collector-tls.prod.yaml
 
-# 4) 部署 Gateway（release 名称：otel-gateway）
+# 4) Gateway (release name: otel-gateway)
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
   -f otel/prod/gateway-values.prod.yaml
 
-# 5) 部署 Agent（release 名称：otel-agent）
+# 5) Agent (release name: otel-agent)
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
   -f otel/prod/agent-values.prod.yaml
 
-# 6) 应用 Instrumentation
+# 6) Instrumentation
 kubectl apply -f otel/prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f otel/prod/inst-crd-python.prod.yaml
 
-# 7) 验证
+# 7) Verify
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get certificate -n observability
 ```
 
-## 命令（PowerShell）
+## Commands (PowerShell)
 
 ```powershell
-# 1) 创建应用命名空间并放通 OTel 客户端流量
+# 1) Create application namespace and allow OTel client traffic
 kubectl create namespace apps-prod --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-prod otel-client=true --overwrite
 kubectl apply -f otel/prod/networkpolicy.prod.yaml
 
-# 2) 创建密钥
+# 2) Secret
 kubectl create secret generic appinsights-conn `
   -n observability `
   --from-literal=connection_string="<APP_INSIGHTS_CONNECTION_STRING>" `
   --dry-run=client -o yaml | kubectl apply -f -
 
-# 3) 通过 cert-manager 创建 TLS 证书与密钥
+# 3) TLS certificates and secrets via cert-manager
 kubectl apply -f otel/prod/collector-tls.prod.yaml
 
-# 4) 部署 Gateway（release 名称：otel-gateway）
+# 4) Gateway (release name: otel-gateway)
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
   -f otel/prod/gateway-values.prod.yaml
 
-# 5) 部署 Agent（release 名称：otel-agent）
+# 5) Agent (release name: otel-agent)
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
   -f otel/prod/agent-values.prod.yaml
 
-# 6) 应用 Instrumentation
+# 6) Instrumentation
 kubectl apply -f otel/prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f otel/prod/inst-crd-python.prod.yaml
 
-# 7) 验证
+# 7) Verify
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get instrumentation -n observability
 kubectl get certificate -n observability
 
-# 8) Collector 管道计数器（gateway）
+# 8) Collector pipeline counters (gateway)
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-gateway -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
-# 9) 将应用注解切换到生产 instrumentation
+# 9) Switch app annotation to production instrumentation
 kubectl annotate deployment otelapidemo `
   -n apps-prod `
   instrumentation.opentelemetry.io/inject-dotnet="observability/dotnet-auto-prod" --overwrite
@@ -123,7 +123,7 @@ kubectl rollout restart deployment/otelapidemo -n apps-prod
 kubectl rollout status deployment/otelapidemo -n apps-prod
 ```
 
-## 应用注解示例
+## Application Annotation Example
 
 ```yaml
 metadata:
@@ -137,15 +137,15 @@ metadata:
     instrumentation.opentelemetry.io/inject-python: "observability/python-auto-prod"
 ```
 
-## 说明
+## Notes
 
-- 当前生产基线已关闭 debug exporter，仅保留 azuremonitor。
-- 采样率设置为 10%（`0.1`），用于生产成本控制。
-- Agent 通过服务 DNS `otel-gateway-opentelemetry-collector.observability.svc.cluster.local:4317` 将 OTLP 转发至 gateway。
-- 相同的 agent/gateway 架构同样适用于 Python 负载；差异仅在 Instrumentation CRD 与应用注解。
-- 对 Python 来说，业务日志仍需应用主动输出；自动注入可开启 OTLP 日志导出，但不会自动产生日志内容。
+- This baseline disables debug exporter and keeps azuremonitor only.
+- Sampling is set to 10% (`0.1`) for production cost control.
+- Agent forwards OTLP to gateway using service DNS `otel-gateway-opentelemetry-collector.observability.svc.cluster.local:4317`.
+- The same agent/gateway architecture applies to Python workloads; only the Instrumentation CRD and application annotation differ.
+- For Python, business logs still require application logging output; auto-instrumentation enables OTLP log export but does not create business log messages by itself.
 
-## Collector 架构（生产）
+## Collector Architecture (Production)
 
 ```mermaid
 flowchart LR
@@ -199,7 +199,7 @@ flowchart LR
   PDB -. protects .-> GW3
 ```
 
-## 证书关系
+## Certificate Relationships
 
 ```mermaid
 flowchart LR
@@ -222,24 +222,24 @@ flowchart LR
   GW -. validates agent cert with CA .-> RCA
 ```
 
-## Collector 告警阈值建议
+## Collector Alert Threshold Guidance
 
-1. `otelcol_exporter_send_failed_* > 0` 持续 5 分钟：Sev2。
-2. `otelcol_receiver_refused_* > 0` 持续 5 分钟：Sev2。
-3. accepted 与 sent 计数器差值持续增长 10 分钟：Sev2。
-4. exporter 队列使用率 > 70% 持续 10 分钟：Sev3。
-5. exporter 队列使用率 > 90% 持续 5 分钟：Sev2。
-6. Collector Pod 在 10 分钟内重启 >= 2 次：Sev2。
-7. HPA 长时间（15 分钟以上）处于最大副本：Sev3（容量预警）。
-8. 导出延迟 P95 > 5 秒持续 10 分钟：Sev3。
+1. `otelcol_exporter_send_failed_* > 0` for 5 minutes: Sev2.
+2. `otelcol_receiver_refused_* > 0` for 5 minutes: Sev2.
+3. Accepted minus sent counters increase continuously for 10 minutes: Sev2.
+4. Exporter queue usage > 70% for 10 minutes: Sev3.
+5. Exporter queue usage > 90% for 5 minutes: Sev2.
+6. Collector pod restarts >= 2 within 10 minutes: Sev2.
+7. HPA at max replicas for 15+ minutes: Sev3 (capacity warning).
+8. Export latency P95 > 5 seconds for 10 minutes: Sev3.
 
-## 升级前检查（Upgrade Pre-Checks）
+## Upgrade Pre-Checks
 
-在执行任何 OTel 升级前，请先固化当前状态，确保回滚可确定执行。
+Before any OTel upgrade, capture current state so rollback is deterministic.
 
-0. 开始升级前，先在 `otel/prod/version-baseline.current.md` 更新当前测试软件版本（chart/image/operator/cert-manager/k8s/helm）。
+0. Update `otel/prod/version-baseline.current.md` with current test software versions (chart/image/operator/cert-manager/k8s/helm) before starting upgrade.
 
-1. 导出当前 release values（即第 2 项所需基线数据）：将集群当前生效配置保存为回滚基线。
+1. Export current release values (this is what item #2 means): save the effective values currently running in cluster as your rollback baseline.
 
 ```bash
 mkdir -p otel/prod/upgrade-baseline
@@ -253,31 +253,31 @@ helm get values otel-gateway -n observability -o yaml | Out-File -Encoding utf8 
 helm get values otel-agent -n observability -o yaml | Out-File -Encoding utf8 otel/prod/upgrade-baseline/otel-agent.values.current.yaml
 ```
 
-2. 记录当前 chart 版本 / 镜像 tag / operator 版本（第 3 项）。
+2. Record current chart version / image tag / operator version (item #3).
 
 ```bash
-# Chart 版本
+# Chart versions
 helm list -n observability | grep -E 'otel-gateway|otel-agent'
 
-# 当前运行的 Collector 镜像 tag
+# Collector image tags currently running
 kubectl get deploy -n observability otel-gateway-opentelemetry-collector -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
 kubectl get ds -n observability otel-agent-opentelemetry-collector -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
 
-# Operator 版本（deployment 镜像）
+# Operator version (deployment image)
 kubectl get deploy -n opentelemetry-operator-system opentelemetry-operator -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
 ```
 
 ```powershell
-# Chart 版本
+# Chart versions
 helm list -n observability | Select-String -Pattern 'otel-gateway|otel-agent'
 
-# 当前运行的 Collector 镜像 tag
+# Collector image tags currently running
 kubectl get deploy -n observability otel-gateway-opentelemetry-collector -o jsonpath='{.spec.template.spec.containers[0].image}{"`n"}'
 kubectl get ds -n observability otel-agent-opentelemetry-collector -o jsonpath='{.spec.template.spec.containers[0].image}{"`n"}'
 
-# Operator 版本（deployment 镜像）
+# Operator version (deployment image)
 kubectl get deploy -n opentelemetry-operator-system opentelemetry-operator -o jsonpath='{.spec.template.spec.containers[0].image}{"`n"}'
 ```
 
-3. 升级前执行一次基线验证：包括 traces、metrics、logs 管道计数器、App Insights 入库、collector 自监控指标，以及 HPA/PDB 状态。
+3. Run a baseline validation before upgrade: traces, metrics, logs pipeline counters, App Insights ingestion, collector self-metrics, and HPA/PDB status.
 

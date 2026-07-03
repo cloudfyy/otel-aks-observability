@@ -1,8 +1,8 @@
-# OTel 开发部署
+# OTel Development Deployment
 
-[中文首页](../README.md) | [English Home](../README.en.md) | [English Doc](README.dev.en.md)
+[中文入口](../README.md) | [English Home](../README.en.md) | [中文文档名](README.dev.md)
 
-## 文件清单
+## Files
 
 - otle-gateway-myvalues.yaml
 - inst-crd-dotnet.yaml
@@ -11,82 +11,82 @@
 - otelapidemo-python.yaml
 - certmgr-test.yaml
 
-## 前置条件
+## Prerequisites
 
-1. 已具备 AKS 集群访问权限，并已正确配置 kubectl 与 helm。
-2. `observability` 命名空间已存在。
-3. 应用命名空间已存在（示例：`apps-dev`）。
-4. OpenTelemetry Operator 已安装且状态正常。
-5. 若自动注入镜像使用私有仓库，请在应用命名空间配置 imagePullSecrets。
+1. Access to AKS cluster with kubectl and helm configured.
+2. Namespace observability exists.
+3. Application namespace exists (example: apps-dev).
+4. OpenTelemetry Operator is installed and healthy.
+5. If you use a private registry image for auto-instrumentation, configure imagePullSecrets in the application namespace.
 
-## 部署顺序
+## Deploy Order
 
-1. 创建并标记应用命名空间。
-2. 部署或升级单 Collector（开发模式）。
-3. 应用 Instrumentation CRD。
-4. 部署示例应用。
-5. 验证 Collector 管道计数器与遥测上报。
+1. Create and label application namespace.
+2. Deploy or upgrade single collector (development mode).
+3. Apply Instrumentation CRDs.
+4. Deploy test applications.
+5. Verify collector pipeline counters and telemetry ingestion.
 
-## 命令（bash）
+## Commands (bash)
 
 ```bash
-# 1) 创建并标记应用命名空间
+# 1) Create and label app namespace
 kubectl create namespace apps-dev --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-dev otel-client=true --overwrite
 
-# 2) 部署单 Collector（release 名称：otel-collector）
+# 2) Deploy single collector (release name: otel-collector)
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
   -n observability --create-namespace \
   -f otel/dev/otle-gateway-myvalues.yaml
 
-# 3) 应用 Instrumentation CRD
+# 3) Apply Instrumentation CRDs
 kubectl apply -f otel/dev/inst-crd-dotnet.yaml
 kubectl apply -f otel/dev/inst-crd-python.yaml
 
-# 4) 部署示例应用
+# 4) Deploy sample apps
 kubectl apply -n apps-dev -f otel/dev/otelapidemo-dotnet.yaml
 kubectl apply -n apps-dev -f otel/dev/otelapidemo-python.yaml
 
-# 5) 验证基础状态
+# 5) Verify basic status
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
 ```
 
-## 命令（PowerShell）
+## Commands (PowerShell)
 
 ```powershell
-# 1) 创建并标记应用命名空间
+# 1) Create and label app namespace
 kubectl create namespace apps-dev --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-dev otel-client=true --overwrite
 
-# 2) 部署单 Collector（release 名称：otel-collector）
+# 2) Deploy single collector (release name: otel-collector)
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
   -n observability --create-namespace `
   -f otel/dev/otle-gateway-myvalues.yaml
 
-# 3) 应用 Instrumentation CRD
+# 3) Apply Instrumentation CRDs
 kubectl apply -f otel/dev/inst-crd-dotnet.yaml
 kubectl apply -f otel/dev/inst-crd-python.yaml
 
-# 4) 部署示例应用
+# 4) Deploy sample apps
 kubectl apply -n apps-dev -f otel/dev/otelapidemo-dotnet.yaml
 kubectl apply -n apps-dev -f otel/dev/otelapidemo-python.yaml
 
-# 5) 验证基础状态
+# 5) Verify basic status
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
 
-# 6) Collector 管道计数器（单 Collector）
+# 6) Collector pipeline counters (single collector)
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 ```
 
-## 注解示例
+## Annotation Examples
 
 ```yaml
 metadata:
@@ -100,9 +100,9 @@ metadata:
     instrumentation.opentelemetry.io/inject-python: "observability/python-auto"
 ```
 
-## 说明
+## Notes
 
-- 当前开发基线采用单 Collector 部署。
-- 现有 dev values 同时包含 debug 与 azuremonitor exporter，便于联调与排障。
-- 如果在 Azure Monitor 中看不到日志，先检查应用侧是否实际产生日志，以及 collector 的 sent/failed 计数器。
-- 为提升 CRD 复用性，建议将服务级 OTEL_SERVICE_NAME 放在应用 Deployment 中，而非共享 Instrumentation CRD。
+- This development baseline uses a single collector deployment.
+- Current dev values include debug and azuremonitor exporters for troubleshooting.
+- If logs are not visible in Azure Monitor, first verify app-side log generation and collector sent/failed counters.
+- For better CRD reuse, keep service-specific OTEL_SERVICE_NAME in application Deployment, not in shared Instrumentation CRD.
