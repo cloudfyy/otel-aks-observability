@@ -29,7 +29,8 @@
 4. 部署 gateway collector（Deployment，多副本）。
 5. 部署 agent collector（DaemonSet）。
 6. 应用 Instrumentation CRD。
-7. 更新应用注解，切换到 dotnet-auto-prod。
+7. 部署 otelapidemo 示例应用。
+8. 更新应用注解，切换到 dotnet-auto-prod。
 
 ## 命令
 
@@ -64,10 +65,14 @@ helm upgrade --install otel-agent open-telemetry/opentelemetry-collector \
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 7) 验证
+# 7) 部署 otelapidemo 示例应用
+kubectl apply -n apps-prod -f ./dev/otelapidemo-dotnet.yaml
+
+# 8) 验证
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get certificate -n observability
+kubectl get pods -n apps-prod
 ```
 
 ## 命令（PowerShell）
@@ -103,18 +108,22 @@ helm upgrade --install otel-agent open-telemetry/opentelemetry-collector `
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 7) 验证
+# 7) 部署 otelapidemo 示例应用
+kubectl apply -n apps-prod -f ./dev/otelapidemo-dotnet.yaml
+
+# 8) 验证
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get instrumentation -n observability
 kubectl get certificate -n observability
+kubectl get pods -n apps-prod
 
-# 8) Collector 管道计数器（gateway）
+# 9) Collector 管道计数器（gateway）
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-gateway -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
-# 9) 将应用注解切换到生产 instrumentation
+# 10) 将应用注解切换到生产 instrumentation
 kubectl annotate deployment otelapidemo `
   -n apps-prod `
   instrumentation.opentelemetry.io/inject-dotnet="observability/dotnet-auto-prod" --overwrite

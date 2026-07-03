@@ -29,7 +29,8 @@
 4. Deploy gateway collector (Deployment, multi-replica).
 5. Deploy agent collector (DaemonSet).
 6. Apply Instrumentation CRD.
-7. Update application annotation to use dotnet-auto-prod.
+7. Deploy the otelapidemo sample application.
+8. Update application annotation to use dotnet-auto-prod.
 
 ## Commands
 
@@ -64,10 +65,14 @@ helm upgrade --install otel-agent open-telemetry/opentelemetry-collector \
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 7) Verify
+# 7) Deploy otelapidemo sample app
+kubectl apply -n apps-prod -f ./dev/otelapidemo-dotnet.yaml
+
+# 8) Verify
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get certificate -n observability
+kubectl get pods -n apps-prod
 ```
 
 ## Commands (PowerShell)
@@ -103,18 +108,22 @@ helm upgrade --install otel-agent open-telemetry/opentelemetry-collector `
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 7) Verify
+# 7) Deploy otelapidemo sample app
+kubectl apply -n apps-prod -f ./dev/otelapidemo-dotnet.yaml
+
+# 8) Verify
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get instrumentation -n observability
 kubectl get certificate -n observability
+kubectl get pods -n apps-prod
 
-# 8) Collector pipeline counters (gateway)
+# 9) Collector pipeline counters (gateway)
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-gateway -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
-# 9) Switch app annotation to production instrumentation
+# 10) Switch app annotation to production instrumentation
 kubectl annotate deployment otelapidemo `
   -n apps-prod `
   instrumentation.opentelemetry.io/inject-dotnet="observability/dotnet-auto-prod" --overwrite
