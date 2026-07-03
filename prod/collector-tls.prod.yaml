@@ -52,7 +52,7 @@ spec:
   secretName: otel-gateway-tls
   duration: 2160h
   renewBefore: 360h
-  commonName: otel-gateway-opentelemetry-collector.observability.svc.cluster.local
+  commonName: otel-gateway-opentelemetry-collector
   dnsNames:
     - otel-gateway-opentelemetry-collector
     - otel-gateway-opentelemetry-collector.observability
