@@ -16,33 +16,33 @@ Main capabilities:
 
 ## Directory Structure
 
-- dev/
+- [dev/](dev/)
   - Development and integration examples (primarily single Collector)
   - Includes .NET/Python Instrumentation, sample app manifests, and collector values
-  - Reference: dev/README.dev.md
-- prod/
+  - Reference: [dev/README.dev.md](dev/README.dev.md)
+- [prod/](prod/)
   - Production baseline configuration (agent + gateway)
   - Includes NetworkPolicy, cert-manager certificates, production values, alerts, and version ledger
-  - Reference: prod/README.prod.md
-- otelapidemo/
+  - Reference: [prod/README.prod.md](prod/README.prod.md)
+- [otelapidemo/](otelapidemo/)
   - Sample application project for validating auto-instrumentation and end-to-end telemetry flow
 
 ## Recommended Reading Order
 
-1. Start with dev/README.dev.md to validate the single-collector setup.
-2. Continue with prod/README.prod.md to deploy the production baseline (agent + gateway).
-3. Before upgrades/changes, update prod/version-baseline.current.md and run Upgrade Pre-Checks.
+1. Start with [dev/README.dev.md](dev/README.dev.md) to validate the single-collector setup.
+2. Continue with [prod/README.prod.md](prod/README.prod.md) to deploy the production baseline (agent + gateway).
+3. Before upgrades/changes, update [prod/version-baseline.current.md](prod/version-baseline.current.md) and run Upgrade Pre-Checks.
 
 ## Key Files
 
-- Dev collector values: dev/otle-gateway-myvalues.yaml
-- Dev .NET Instrumentation CRD: dev/inst-crd-dotnet.yaml
-- Dev Python Instrumentation CRD: dev/inst-crd-python.yaml
-- Prod gateway values: prod/gateway-values.prod.yaml
-- Prod agent values: prod/agent-values.prod.yaml
-- Prod network policy: prod/networkpolicy.prod.yaml
-- Prod certificate config: prod/collector-tls.prod.yaml
-- Prod version ledger: prod/version-baseline.current.md
+- Dev collector values: [dev/otle-gateway-myvalues.yaml](dev/otle-gateway-myvalues.yaml)
+- Dev .NET Instrumentation CRD: [dev/inst-crd-dotnet.yaml](dev/inst-crd-dotnet.yaml)
+- Dev Python Instrumentation CRD: [dev/inst-crd-python.yaml](dev/inst-crd-python.yaml)
+- Prod gateway values: [prod/gateway-values.prod.yaml](prod/gateway-values.prod.yaml)
+- Prod agent values: [prod/agent-values.prod.yaml](prod/agent-values.prod.yaml)
+- Prod network policy: [prod/networkpolicy.prod.yaml](prod/networkpolicy.prod.yaml)
+- Prod certificate config: [prod/collector-tls.prod.yaml](prod/collector-tls.prod.yaml)
+- Prod version ledger: [prod/version-baseline.current.md](prod/version-baseline.current.md)
 
 ## Notes
 
