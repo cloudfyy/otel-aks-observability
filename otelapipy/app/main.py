@@ -4,6 +4,8 @@ import random
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+logging.basicConfig(level=logging.INFO)
+
 app = FastAPI(title="otelapi-py", version="1.0.0")
 logger = logging.getLogger("otelapi-py")
 
@@ -30,7 +32,7 @@ class WeatherForecast(BaseModel):
 
 @app.get("/weatherforecast", response_model=list[WeatherForecast])
 def get_weather_forecast() -> list[WeatherForecast]:
-    logger.info("GET /weatherforecast")
+    logger.info("Python weather forecast requested")
     forecasts: list[WeatherForecast] = []
 
     for index in range(1, 6):

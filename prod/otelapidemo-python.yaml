@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: otelapidemo-python
-          image: qiqiacr.azurecr.io/otelapipy:latest
+          image: <ACR_LOGIN_SERVER>/otelapipy:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -27,7 +27,7 @@ spec:
             - name: PYTHONUNBUFFERED
               value: "1"
             - name: OTEL_SERVICE_NAME
-              value: weatherforecast-api-python
+              value: otelapidemo-python
           resources:
             requests:
               cpu: 100m

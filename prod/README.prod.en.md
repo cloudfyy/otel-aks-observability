@@ -187,6 +187,46 @@ metadata:
 6. Check Collector self-observability: inspect exporter queue and error logs on agent/gateway.
 7. Validate in App Insights: run broad KQL first, then narrow by `cloud_RoleName` or `service.name`.
 
+### FAQ
+
+#### Python auto-instrumentation produces no requests, dependencies, or logs in App Insights
+
+Symptom: the application endpoint works, and the business log appears in Pod logs, but App Insights shows no Python `requests`, `dependencies`, or `traces` for the service.
+
+Common cause: the Python auto-instrumentation image may not include the OTLP gRPC exporter package. Verify it inside the application Pod:
+
+```powershell
+$pod = kubectl get pods -n apps-prod -l app=otelapidemo-python -o jsonpath='{.items[0].metadata.name}'
+
+kubectl exec -n apps-prod $pod -c otelapidemo-python -- python -m pip show opentelemetry-exporter-otlp-proto-grpc
+kubectl exec -n apps-prod $pod -c otelapidemo-python -- python -m pip show opentelemetry-exporter-otlp-proto-http
+
+kubectl exec -n apps-prod $pod -c otelapidemo-python -- python -c "import importlib.util; names=['opentelemetry.exporter.otlp.proto.grpc','opentelemetry.exporter.otlp.proto.http']; [print(name + ': ' + ('INSTALLED' if importlib.util.find_spec(name) else 'NOT INSTALLED')) for name in names]"
+```
+
+If the output is similar to the following, the current Python auto-instrumentation environment does not support OTLP gRPC but does support OTLP HTTP/protobuf:
+
+```text
+WARNING: Package(s) not found: opentelemetry-exporter-otlp-proto-grpc
+Name: opentelemetry-exporter-otlp-proto-http
+opentelemetry.exporter.otlp.proto.grpc: NOT INSTALLED
+opentelemetry.exporter.otlp.proto.http: INSTALLED
+```
+
+Fix: configure Python Instrumentation to use OTLP HTTP/protobuf and port `4318`:
+
+```yaml
+spec:
+  exporter:
+    endpoint: http://otel-agent-opentelemetry-collector.observability.svc.cluster.local:4318
+  python:
+    env:
+      - name: OTEL_EXPORTER_OTLP_PROTOCOL
+        value: http/protobuf
+```
+
+After applying the Instrumentation, restart the Python Deployment and send 50-200 test requests. In App Insights, the `cloud_RoleName` is usually `apps-prod.otelapidemo-python`.
+
 ### Final App Insights Verification KQL (30m)
 
 - After sending test traffic, restarting Pods, or changing Collector/Instrumentation config, wait 3-10 minutes before querying to avoid false negatives from ingestion delay.

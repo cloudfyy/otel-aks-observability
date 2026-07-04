@@ -187,6 +187,46 @@ metadata:
 6. 检查 Collector 自监控：查看 agent/gateway 的 exporter queue 与 error 日志。
 7. 验证 App Insights：先用无过滤 KQL 看近 30-60 分钟总量，再按 `cloud_RoleName` 或 `service.name` 过滤。
 
+### 常见问题
+
+#### Python 自动注入后 App Insights 没有请求、依赖或日志
+
+现象：应用接口可访问，Pod 日志中也能看到业务日志，但 App Insights 中按 Python 服务名查不到 `requests`、`dependencies` 或 `traces`。
+
+常见原因：Python auto-instrumentation 镜像可能未安装 OTLP gRPC exporter 包。可在应用 Pod 中验证：
+
+```powershell
+$pod = kubectl get pods -n apps-prod -l app=otelapidemo-python -o jsonpath='{.items[0].metadata.name}'
+
+kubectl exec -n apps-prod $pod -c otelapidemo-python -- python -m pip show opentelemetry-exporter-otlp-proto-grpc
+kubectl exec -n apps-prod $pod -c otelapidemo-python -- python -m pip show opentelemetry-exporter-otlp-proto-http
+
+kubectl exec -n apps-prod $pod -c otelapidemo-python -- python -c "import importlib.util; names=['opentelemetry.exporter.otlp.proto.grpc','opentelemetry.exporter.otlp.proto.http']; [print(name + ': ' + ('INSTALLED' if importlib.util.find_spec(name) else 'NOT INSTALLED')) for name in names]"
+```
+
+如果输出类似如下，说明当前 Python 自动注入环境不支持 OTLP gRPC，但支持 OTLP HTTP/protobuf：
+
+```text
+WARNING: Package(s) not found: opentelemetry-exporter-otlp-proto-grpc
+Name: opentelemetry-exporter-otlp-proto-http
+opentelemetry.exporter.otlp.proto.grpc: NOT INSTALLED
+opentelemetry.exporter.otlp.proto.http: INSTALLED
+```
+
+修复方式：将 Python Instrumentation 改为 OTLP HTTP/protobuf，并使用 `4318` 端口：
+
+```yaml
+spec:
+  exporter:
+    endpoint: http://otel-agent-opentelemetry-collector.observability.svc.cluster.local:4318
+  python:
+    env:
+      - name: OTEL_EXPORTER_OTLP_PROTOCOL
+        value: http/protobuf
+```
+
+应用 Instrumentation 后重启 Python Deployment，再发送 50-200 次测试请求。App Insights 中的 `cloud_RoleName` 通常为 `apps-prod.otelapidemo-python`。
+
 ### App Insights 最终核验 KQL（30 分钟）
 
 - 在发送测试流量、重启 Pod、或调整 Collector/Instrumentation 配置后，建议先等待 3-10 分钟再查询，以避免摄取延迟导致误判。

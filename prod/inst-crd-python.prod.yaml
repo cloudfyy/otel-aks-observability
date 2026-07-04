@@ -8,21 +8,18 @@ metadata:
     otel.config/updated: "2026-07-03"
 spec:
   exporter:
-    endpoint: http://otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317
+    endpoint: http://otel-agent-opentelemetry-collector.observability.svc.cluster.local:4318
   propagators:
     - tracecontext
     - baggage
   sampler:
-    type: parentbased_traceidratio
-    argument: "0.1"
+    type: always_on
   python:
     env:
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
-        value: grpc
+        value: http/protobuf
       - name: OTEL_TRACES_SAMPLER
-        value: parentbased_traceidratio
-      - name: OTEL_TRACES_SAMPLER_ARG
-        value: "0.1"
+        value: always_on
       - name: OTEL_LOGS_EXPORTER
         value: otlp
       - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED

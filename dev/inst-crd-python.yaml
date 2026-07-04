@@ -5,7 +5,7 @@ metadata:
   namespace: observability
 spec:
   exporter:
-    endpoint: http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4317
+    endpoint: http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318
   propagators:
     - tracecontext
     - baggage
@@ -15,9 +15,9 @@ spec:
   python:
     env:
       - name: OTEL_SERVICE_NAME
-        value: weatherforecast-api-python
+        value: otelapidemo-python
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
-        value: grpc
+        value: http/protobuf
       - name: OTEL_LOGS_EXPORTER
         value: otlp
       - name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED
