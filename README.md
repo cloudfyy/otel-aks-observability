@@ -24,6 +24,10 @@
   - 生产基线配置（agent + gateway）
   - 包含 NetworkPolicy、cert-manager 证书、生产 values、告警与版本台账
   - 参考文档：[prod/README.prod.md](prod/README.prod.md)
+- [otelapipy/](otelapipy/)
+  - Python Web API 示例工程（功能对齐 .NET weatherforecast）
+  - 包含容器化文件与 dev/prod 自动注入部署清单
+  - 参考文档：[otelapipy/README.md](otelapipy/README.md)
 - [otelapidemo/](otelapidemo/)
   - 示例应用工程（用于验证自动注入与端到端链路）
 
@@ -45,6 +49,10 @@
 - 生产 agent RBAC（k8sattributes 权限）：[prod/otel-agent-rbac.prod.yaml](prod/otel-agent-rbac.prod.yaml)
 - 生产 .NET 示例应用清单：[prod/otelapidemo-dotnet.yaml](prod/otelapidemo-dotnet.yaml)
 - 生产 Python 示例清单模板（仅示例、尚需测试）：[prod/otelapidemo-python.yaml](prod/otelapidemo-python.yaml)
+- Python API 源码入口：[otelapipy/app/main.py](otelapipy/app/main.py)
+- Python API 容器构建文件：[otelapipy/Dockerfile](otelapipy/Dockerfile)
+- Python API 开发部署清单：[otelapipy/deploy/otelapi-py.dev.yaml](otelapipy/deploy/otelapi-py.dev.yaml)
+- Python API 生产部署清单：[otelapipy/deploy/otelapi-py.prod.yaml](otelapipy/deploy/otelapi-py.prod.yaml)
 - 生产网络策略：[prod/networkpolicy.prod.yaml](prod/networkpolicy.prod.yaml)
 - 生产证书配置：[prod/collector-tls.prod.yaml](prod/collector-tls.prod.yaml)
 - 生产告警查询建议：[prod/alerts-kql.prod.md](prod/alerts-kql.prod.md)

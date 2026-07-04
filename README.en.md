@@ -24,6 +24,10 @@ Main capabilities:
   - Production baseline configuration (agent + gateway)
   - Includes NetworkPolicy, cert-manager certificates, production values, alerts, and version ledger
   - Reference: [prod/README.prod.en.md](prod/README.prod.en.md)
+- [otelapipy/](otelapipy/)
+  - Python Web API sample project (aligned with .NET weatherforecast behavior)
+  - Includes containerization files and dev/prod auto-instrumentation deployment manifests
+  - Reference: [otelapipy/README.md](otelapipy/README.md)
 - [otelapidemo/](otelapidemo/)
   - Sample application project for validating auto-instrumentation and end-to-end telemetry flow
 
@@ -45,6 +49,10 @@ Main capabilities:
 - Prod agent RBAC (k8sattributes permissions): [prod/otel-agent-rbac.prod.yaml](prod/otel-agent-rbac.prod.yaml)
 - Prod .NET sample app manifest: [prod/otelapidemo-dotnet.yaml](prod/otelapidemo-dotnet.yaml)
 - Prod Python sample manifest template (example-only, pending validation): [prod/otelapidemo-python.yaml](prod/otelapidemo-python.yaml)
+- Python API source entry: [otelapipy/app/main.py](otelapipy/app/main.py)
+- Python API container build file: [otelapipy/Dockerfile](otelapipy/Dockerfile)
+- Python API dev deployment manifest: [otelapipy/deploy/otelapi-py.dev.yaml](otelapipy/deploy/otelapi-py.dev.yaml)
+- Python API prod deployment manifest: [otelapipy/deploy/otelapi-py.prod.yaml](otelapipy/deploy/otelapi-py.prod.yaml)
 - Prod network policy: [prod/networkpolicy.prod.yaml](prod/networkpolicy.prod.yaml)
 - Prod certificate config: [prod/collector-tls.prod.yaml](prod/collector-tls.prod.yaml)
 - Prod alert query guidance: [prod/alerts-kql.prod.md](prod/alerts-kql.prod.md)
