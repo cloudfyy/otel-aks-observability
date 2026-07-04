@@ -10,7 +10,7 @@
 - inst-crd-dotnet.yaml: .NET auto-instrumentation CRD.
 - inst-crd-python.yaml: Python auto-instrumentation CRD.
 - otelapidemo-dotnet.yaml: .NET sample app manifest.
-- otelapidemo-python.yaml: Python sample app manifest.
+- otelapidemo-python.yaml: Python sample app manifest template (example-only for now; further validation required).
 - certmgr-test.yaml: cert-manager test manifest for development validation.
 - README.dev.md: Chinese development deployment guide.
 - README.dev.en.md: this English development deployment guide.
@@ -49,7 +49,8 @@ kubectl apply -f ./dev/inst-crd-python.yaml
 
 # 4) Deploy sample apps
 kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
-kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
+# Optional: Python manifest is example-only for now; enable after validation
+# kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
 # 5) Verify basic status
 kubectl get pods -n observability
@@ -76,7 +77,8 @@ kubectl apply -f ./dev/inst-crd-python.yaml
 
 # 4) Deploy sample apps
 kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
-kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
+# Optional: Python manifest is example-only for now; enable after validation
+# kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
 # 5) Verify basic status
 kubectl get pods -n observability
@@ -111,4 +113,5 @@ metadata:
 - If logs are not visible in Azure Monitor, first verify app-side log generation and collector sent/failed counters.
 - `current-values.yaml` and `myvalues.yaml` are kept as historical/alternate values and are not referenced by default commands.
 - Image fields in `otelapidemo-*.yaml` use the placeholder `<ACR_LOGIN_SERVER>`; replace it with your real ACR login server before deployment.
+- `otelapidemo-python.yaml` is currently an example template only and has not completed full validation; validate in an isolated environment before enabling.
 - For better CRD reuse, keep service-specific OTEL_SERVICE_NAME in application Deployment, not in shared Instrumentation CRD.
