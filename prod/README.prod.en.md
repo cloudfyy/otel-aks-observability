@@ -174,6 +174,7 @@ metadata:
 - Applications send OTLP to `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317`; agent then forwards traffic to gateway.
 - The same agent/gateway architecture applies to Python workloads; only the Instrumentation CRD and application annotation differ.
 - `otelapidemo-python.yaml` is currently provided as an example template only; complete production validation is still pending.
+- Image fields in `otelapidemo-*.yaml` use the placeholder `<ACR_LOGIN_SERVER>`; replace it with your real ACR login server before deployment.
 - For Python, business logs still require application logging output; auto-instrumentation enables OTLP log export but does not create business log messages by itself.
 
 ## Troubleshooting Steps (No Data in AI After App Access)

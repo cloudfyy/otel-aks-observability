@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: otelapidemo-python
-          image: qiqiacr.azurecr.io/otelapidemo-python:latest
+          image: <ACR_LOGIN_SERVER>/otelapidemo-python:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

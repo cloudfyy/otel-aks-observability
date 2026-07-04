@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: otelapidemo
-          image: qiqiacr.azurecr.io/otelapidemo:latest
+          image: <ACR_LOGIN_SERVER>/otelapidemo:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
