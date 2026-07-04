@@ -4,7 +4,7 @@ metadata:
   name: default-deny-observability
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-03"
 spec:
   podSelector: {}
@@ -18,7 +18,7 @@ metadata:
   name: allow-apps-to-otel-agent-otlp
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-03"
 spec:
   podSelector:
@@ -43,7 +43,7 @@ metadata:
   name: allow-agent-to-gateway-otlp
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-03"
 spec:
   podSelector:
@@ -66,7 +66,7 @@ metadata:
   name: allow-gateway-ingress-from-agent-otlp
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-03"
 spec:
   podSelector:
@@ -89,7 +89,7 @@ metadata:
   name: allow-agent-egress-dns
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-03"
 spec:
   podSelector:
@@ -114,7 +114,7 @@ metadata:
   name: allow-gateway-egress-https-and-dns
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-03"
 spec:
   podSelector:

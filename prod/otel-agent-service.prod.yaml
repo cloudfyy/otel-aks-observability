@@ -4,7 +4,7 @@ metadata:
   name: otel-agent-opentelemetry-collector
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-04"
 spec:
   type: ClusterIP

@@ -4,7 +4,7 @@ metadata:
   name: otel-selfsigned
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-03"
 spec:
   selfSigned: {}
@@ -15,7 +15,7 @@ metadata:
   name: otel-root-ca
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-03"
 spec:
   isCA: true
@@ -34,7 +34,7 @@ metadata:
   name: otel-ca-issuer
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-03"
 spec:
   ca:
@@ -46,7 +46,7 @@ metadata:
   name: otel-gateway-tls
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-03"
 spec:
   secretName: otel-gateway-tls
@@ -73,7 +73,7 @@ metadata:
   name: otel-agent-client-tls
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.0"
+    otel.config/version: "v1.0.1"
     otel.config/updated: "2026-07-03"
 spec:
   secretName: otel-agent-client-tls
