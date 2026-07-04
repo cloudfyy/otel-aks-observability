@@ -8,12 +8,14 @@
 - collector-tls.prod.yaml: cert-manager certificates and issuers for gateway/agent mTLS.
 - gateway-values.prod.yaml: Helm values for gateway Collector (export and scaling behavior).
 - agent-values.prod.yaml: Helm values for agent Collector (node-side receive/forward).
+- ingress-nginx-values.prod.yaml: Helm values for ingress-nginx (AKS Load Balancer TCP health probe).
 - otel-agent-service.prod.yaml: stable OTLP Service endpoint for application traffic into agent.
 - otel-agent-rbac.prod.yaml: RBAC required by agent (k8sattributes permissions).
 - inst-crd-dotnet.prod.yaml: production .NET auto-instrumentation CRD.
 - inst-crd-python.prod.yaml: production Python auto-instrumentation CRD.
 - otelapidemo-dotnet.yaml: production .NET sample app manifest (production annotation preconfigured).
-- otelapidemo-python.yaml: production Python sample manifest template (production annotation preconfigured; example-only for now and requires further validation).
+- otelapidemo-python.yaml: production Python sample app manifest (production annotation preconfigured).
+- otelapidemo-ingress.prod.yaml: shared production Ingress for sample apps (.NET and Python behind one Ingress resource).
 - alerts-kql.prod.md: alerting and KQL guidance for production.
 - version-baseline.current.md: production version baseline and change ledger.
 - README.prod.md: Chinese production deployment guide.
@@ -26,6 +28,7 @@
 3. Required namespaces exist (`observability`, `apps-prod`) and application namespace is labeled with `otel-client=true`.
 4. App Insights connection string secret exists (`appinsights-conn`) in `observability`.
 5. RBAC allows you to read and update releases in `observability` namespace.
+6. NGINX Ingress Controller is installed in the cluster, and the `nginx` IngressClass exists. `otelapidemo-ingress.prod.yaml` depends on NGINX rewrite annotations to rewrite `/dotnet/*` and `/python/*` to the original backend paths. On AKS, set the ingress-nginx Service health probe for port 80 to TCP to avoid Azure Load Balancer HTTP `/` probes causing public access timeouts.
 
 ## Deploy Order
 
@@ -37,8 +40,9 @@
 6. Apply agent Service manifest (stable OTLP endpoint for applications).
 7. Apply agent RBAC manifest (k8sattributes metadata extraction permissions).
 8. Apply Instrumentation CRD.
-9. Deploy otelapidemo sample applications (.NET first; Python manifest is currently example-only and should be validated before production use).
-10. Verify baseline status.
+9. Deploy otelapidemo sample applications (.NET and Python Services use `ClusterIP`).
+10. Apply the shared Ingress to place .NET and Python behind one Ingress resource.
+11. Verify baseline status.
 
 ## Commands
 
@@ -79,17 +83,28 @@ kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) Deploy otelapidemo sample apps (prod manifests)
+# 9) Deploy otelapidemo sample apps (prod manifests, Services use ClusterIP)
 kubectl apply -n apps-prod -f ./prod/otelapidemo-dotnet.yaml
-# Optional: Python manifest is example-only for now; enable after validation
-# kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
+kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
 
-# 10) Verify
+# 9.5) Install or update NGINX Ingress Controller (AKS uses TCP health probe)
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update ingress-nginx
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx --create-namespace \
+  -f ./prod/ingress-nginx-values.prod.yaml
+
+# 10) Apply shared Ingress (path-based routing: /dotnet and /python)
+kubectl apply -n apps-prod -f ./prod/otelapidemo-ingress.prod.yaml
+
+# 11) Verify
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
+kubectl get svc -n apps-prod otelapidemo otelapidemo-python
+kubectl get ingress -n apps-prod otelapidemo
 ```
 
 ## Commands (PowerShell)
@@ -131,25 +146,36 @@ kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) Deploy otelapidemo sample apps (prod manifests)
+# 9) Deploy otelapidemo sample apps (prod manifests, Services use ClusterIP)
 kubectl apply -n apps-prod -f ./prod/otelapidemo-dotnet.yaml
-# Optional: Python manifest is example-only for now; enable after validation
-# kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
+kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
 
-# 10) Verify
+# 9.5) Install or update NGINX Ingress Controller (AKS uses TCP health probe)
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update ingress-nginx
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx `
+  --namespace ingress-nginx --create-namespace `
+  -f ./prod/ingress-nginx-values.prod.yaml
+
+# 10) Apply shared Ingress (path-based routing: /dotnet and /python)
+kubectl apply -n apps-prod -f ./prod/otelapidemo-ingress.prod.yaml
+
+# 11) Verify
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get instrumentation -n observability
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
+kubectl get svc -n apps-prod otelapidemo otelapidemo-python
+kubectl get ingress -n apps-prod otelapidemo
 
-# 11) Collector pipeline counters (gateway)
+# 12) Collector pipeline counters (gateway)
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-gateway -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
-# 12) (Optional) Only needed when migrating old dev manifests
+# 13) (Optional) Only needed when migrating old dev manifests
 # New ./prod/otelapidemo-*.yaml already include production annotations
 ```
 
@@ -172,8 +198,9 @@ metadata:
 - This baseline disables debug exporter and keeps azuremonitor only.
 - Sampling is set to 10% (`0.1`) for production cost control.
 - Applications send OTLP to `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317`; agent then forwards traffic to gateway.
+- Production sample applications do not expose `LoadBalancer` Services directly. Both `.NET` and Python Services use `ClusterIP`, and external access is routed through the shared Ingress in `otelapidemo-ingress.prod.yaml`.
+- The shared Ingress uses path-based routing: `/dotnet/*` routes to the `.NET` Service, and `/python/*` routes to the Python Service. NGINX rewrite strips the prefix, so backend applications keep their original `/weatherforecast` route and do not need code changes.
 - The same agent/gateway architecture applies to Python workloads; only the Instrumentation CRD and application annotation differ.
-- `otelapidemo-python.yaml` is currently provided as an example template only; complete production validation is still pending.
 - Image fields in `otelapidemo-*.yaml` use the placeholder `<ACR_LOGIN_SERVER>`; replace it with your real ACR login server before deployment.
 - For Python, business logs still require application logging output; auto-instrumentation enables OTLP log export but does not create business log messages by itself.
 
@@ -181,13 +208,60 @@ metadata:
 
 1. Check component health: all agent/gateway Pods in `observability` must be `Running`.
 2. Check OTLP entry service: `otel-agent-opentelemetry-collector` must exist and have endpoints.
-3. Check auto-injection: app Pod annotation should be `observability/dotnet-auto-prod`, and `opentelemetry-auto-instrumentation-dotnet` initContainer must exist.
-4. Check Instrumentation CRD: verify endpoint/sampler settings on `dotnet-auto-prod`.
+3. Check auto-injection: the .NET app Pod annotation should be `observability/dotnet-auto-prod`, and the `opentelemetry-auto-instrumentation-dotnet` initContainer must exist. The Python app Pod annotation should be `observability/python-auto-prod`, with Python auto-instrumentation initContainer/env injection present.
+4. Check Instrumentation CRDs: verify endpoint/sampler settings on both `dotnet-auto-prod` and `python-auto-prod`. Python should use OTLP HTTP/protobuf and port `4318`.
 5. Send test traffic: hit business endpoint 50-200 times to avoid false negatives under sampling.
 6. Check Collector self-observability: inspect exporter queue and error logs on agent/gateway.
 7. Validate in App Insights: run broad KQL first, then narrow by `cloud_RoleName` or `service.name`.
 
 ### FAQ
+
+#### Ingress has a public IP, but `/dotnet/weatherforecast` or `/python/weatherforecast` times out
+
+Symptom: `kubectl get ingress -n apps-prod otelapidemo` shows a public address, and the Ingress rules plus Service endpoints look correct. Accessing the `ingress-nginx-controller` Service or the backend Services from inside the cluster returns `200`, but accessing port 80 on the public IP from the client machine times out.
+
+Finding from this deployment: the Azure Load Balancer health probe created for the ingress-nginx `LoadBalancer` Service used HTTP `/` by default. When ingress-nginx has no matching rule for `/`, it returns `404`; Azure Load Balancer then treats the backend as unhealthy and public traffic times out. The backend apps, Ingress rewrite rules, and Service endpoints are not the problem in this case.
+
+Quick checks:
+
+```powershell
+kubectl get svc -n ingress-nginx ingress-nginx-controller -o wide
+kubectl get ingress -n apps-prod otelapidemo -o wide
+
+# Verify from inside the cluster that the Ingress Service can route to the backend
+kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- curl -i --max-time 10 http://ingress-nginx-controller.ingress-nginx.svc.cluster.local/dotnet/weatherforecast
+
+# Inspect Azure Load Balancer probe protocol and path
+$nodeRg = az aks show -g <AKS_RESOURCE_GROUP> -n <AKS_CLUSTER_NAME> --query nodeResourceGroup -o tsv
+az network lb probe list -g $nodeRg --lb-name kubernetes --query "[].{name:name, protocol:protocol, port:port, requestPath:requestPath}" -o table
+```
+
+Fix: install or upgrade ingress-nginx with `prod/ingress-nginx-values.prod.yaml`, which changes the port 80 health probe to TCP.
+
+```bash
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx --create-namespace \
+  -f ./prod/ingress-nginx-values.prod.yaml
+```
+
+Expected Helm values:
+
+```yaml
+controller:
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/port_80_health-probe_protocol: Tcp
+```
+
+Verify after the fix:
+
+```powershell
+$ingressAddress = kubectl get ingress -n apps-prod otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+Test-NetConnection $ingressAddress -Port 80
+curl.exe -i --max-time 10 "http://$ingressAddress/dotnet/weatherforecast"
+curl.exe -i --max-time 10 "http://$ingressAddress/python/weatherforecast"
+```
 
 #### Python auto-instrumentation produces no requests, dependencies, or logs in App Insights
 
@@ -249,12 +323,14 @@ union requests, dependencies, traces
 ```powershell
 $nsObs = "observability"
 $nsApp = "apps-prod"
-$app = "otelapidemo"
+$dotnetApp = "otelapidemo"
+$pythonApp = "otelapidemo-python"
 $svc = "otel-agent-opentelemetry-collector"
 
 Write-Host "== 1) Component health =="
 kubectl get pods -n $nsObs -o wide
-kubectl get pods -n $nsApp -l app=$app -o wide
+kubectl get pods -n $nsApp -l app=$dotnetApp -o wide
+kubectl get pods -n $nsApp -l app=$pythonApp -o wide
 
 Write-Host "== 2) OTLP entry service =="
 kubectl get svc -n $nsObs $svc -o wide
@@ -262,17 +338,25 @@ kubectl get endpoints -n $nsObs $svc -o wide
 
 Write-Host "== 3) Instrumentation and app annotation =="
 kubectl get instrumentation -n $nsObs dotnet-auto-prod -o yaml
-kubectl get deploy -n $nsApp $app -o jsonpath='{.spec.template.metadata.annotations.instrumentation\.opentelemetry\.io/inject-dotnet}{"`n"}'
+kubectl get instrumentation -n $nsObs python-auto-prod -o yaml
+kubectl get deploy -n $nsApp $dotnetApp -o jsonpath='{.spec.template.metadata.annotations.instrumentation\.opentelemetry\.io/inject-dotnet}{"\n"}'
+kubectl get deploy -n $nsApp $pythonApp -o jsonpath='{.spec.template.metadata.annotations.instrumentation\.opentelemetry\.io/inject-python}{"\n"}'
+kubectl get pods -n $nsApp -l app=$dotnetApp -o jsonpath='{range .items[*]}{.metadata.name}{" initContainers="}{range .spec.initContainers[*]}{.name}{","}{end}{"\n"}{end}'
+kubectl get pods -n $nsApp -l app=$pythonApp -o jsonpath='{range .items[*]}{.metadata.name}{" initContainers="}{range .spec.initContainers[*]}{.name}{","}{end}{"\n"}{end}'
 
 Write-Host "== 4) Generate test traffic =="
-$lb = kubectl get svc -n $nsApp $app -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-if ([string]::IsNullOrEmpty($lb)) {
-  Write-Host "LoadBalancer IP not ready"
+$ingressAddress = kubectl get ingress -n $nsApp otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+if ([string]::IsNullOrEmpty($ingressAddress)) {
+  $ingressAddress = kubectl get ingress -n $nsApp otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+}
+if ([string]::IsNullOrEmpty($ingressAddress)) {
+  Write-Host "Ingress address not ready"
 } else {
   1..100 | ForEach-Object {
-    try { Invoke-WebRequest -Uri ("http://{0}/weatherforecast" -f $lb) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
+    try { Invoke-WebRequest -Uri ("http://{0}/dotnet/weatherforecast" -f $ingressAddress) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
+    try { Invoke-WebRequest -Uri ("http://{0}/python/weatherforecast" -f $ingressAddress) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
   }
-  Write-Host "Traffic sent to http://$lb/weatherforecast"
+  Write-Host "Traffic sent to http://$ingressAddress/dotnet/weatherforecast and /python/weatherforecast"
 }
 
 Write-Host "== 5) Key Collector logs (last 10m) =="
@@ -287,12 +371,14 @@ set -euo pipefail
 
 NS_OBS="observability"
 NS_APP="apps-prod"
-APP="otelapidemo"
+DOTNET_APP="otelapidemo"
+PYTHON_APP="otelapidemo-python"
 SVC="otel-agent-opentelemetry-collector"
 
 echo "== 1) Component health =="
 kubectl get pods -n "$NS_OBS" -o wide
-kubectl get pods -n "$NS_APP" -l app="$APP" -o wide
+kubectl get pods -n "$NS_APP" -l app="$DOTNET_APP" -o wide
+kubectl get pods -n "$NS_APP" -l app="$PYTHON_APP" -o wide
 
 echo "== 2) OTLP entry service =="
 kubectl get svc -n "$NS_OBS" "$SVC" -o wide
@@ -300,17 +386,25 @@ kubectl get endpoints -n "$NS_OBS" "$SVC" -o wide
 
 echo "== 3) Instrumentation and app annotation =="
 kubectl get instrumentation -n "$NS_OBS" dotnet-auto-prod -o yaml
-kubectl get deploy -n "$NS_APP" "$APP" -o jsonpath='{.spec.template.metadata.annotations.instrumentation\.opentelemetry\.io/inject-dotnet}{"\n"}'
+kubectl get instrumentation -n "$NS_OBS" python-auto-prod -o yaml
+kubectl get deploy -n "$NS_APP" "$DOTNET_APP" -o jsonpath='{.spec.template.metadata.annotations.instrumentation\.opentelemetry\.io/inject-dotnet}{"\n"}'
+kubectl get deploy -n "$NS_APP" "$PYTHON_APP" -o jsonpath='{.spec.template.metadata.annotations.instrumentation\.opentelemetry\.io/inject-python}{"\n"}'
+kubectl get pods -n "$NS_APP" -l app="$DOTNET_APP" -o jsonpath='{range .items[*]}{.metadata.name}{" initContainers="}{range .spec.initContainers[*]}{.name}{","}{end}{"\n"}{end}'
+kubectl get pods -n "$NS_APP" -l app="$PYTHON_APP" -o jsonpath='{range .items[*]}{.metadata.name}{" initContainers="}{range .spec.initContainers[*]}{.name}{","}{end}{"\n"}{end}'
 
 echo "== 4) Generate test traffic =="
-LB_IP=$(kubectl get svc -n "$NS_APP" "$APP" -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-if [ -n "${LB_IP}" ]; then
+INGRESS_ADDRESS=$(kubectl get ingress -n "$NS_APP" otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+if [ -z "${INGRESS_ADDRESS}" ]; then
+  INGRESS_ADDRESS=$(kubectl get ingress -n "$NS_APP" otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+fi
+if [ -n "${INGRESS_ADDRESS}" ]; then
   for i in $(seq 1 100); do
-    curl -sS "http://${LB_IP}/weatherforecast" >/dev/null || true
+    curl -sS "http://${INGRESS_ADDRESS}/dotnet/weatherforecast" >/dev/null || true
+    curl -sS "http://${INGRESS_ADDRESS}/python/weatherforecast" >/dev/null || true
   done
-  echo "Traffic sent to http://${LB_IP}/weatherforecast"
+  echo "Traffic sent to http://${INGRESS_ADDRESS}/dotnet/weatherforecast and /python/weatherforecast"
 else
-  echo "LoadBalancer IP not ready"
+  echo "Ingress address not ready"
 fi
 
 echo "== 5) Key Collector logs (last 10m) =="

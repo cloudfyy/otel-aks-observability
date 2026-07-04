@@ -60,7 +60,7 @@ metadata:
   labels:
     app: otelapidemo-python
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: otelapidemo-python
   ports:

@@ -1,0 +1,5 @@
+controller:
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/port_80_health-probe_protocol: Tcp
