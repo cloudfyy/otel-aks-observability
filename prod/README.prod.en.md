@@ -318,6 +318,85 @@ union requests, dependencies, traces
 | order by timestamp desc
 ```
 
+### App Insights Metrics Verification KQL (30m)
+
+- OTel metrics usually land in the `customMetrics` table for classic App Insights. Workspace-based App Insights may expose the same data through `AppMetrics`. The queries below use `union isfuzzy=true` to support both schemas.
+- If the query returns no data, first check `OTEL_METRICS_EXPORTER=otlp` on application Pods, the Collector `metrics` pipeline, and the gateway `azuremonitor` exporter.
+- Metric names vary by language, auto-instrumentation version, and semantic convention version. Run a discovery query first, then filter by name.
+
+Discover recently ingested metric names:
+
+```kql
+let MetricRows = union isfuzzy=true
+  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),
+  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
+MetricRows
+| where timestamp > ago(30m)
+| summarize points=count(), lastSeen=max(timestamp) by name, cloud_RoleName
+| order by points desc
+```
+
+Filter metrics for the two current production services:
+
+```kql
+let MetricRows = union isfuzzy=true
+  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),
+  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
+MetricRows
+| where timestamp > ago(30m)
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+  or (
+    tostring(customDimensions["service.namespace"]) =~ "apps-prod"
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+  )
+| summarize points=count(), avgValue=avg(value), maxValue=max(value), lastSeen=max(timestamp) by name, cloud_RoleName
+| order by points desc
+```
+
+Useful application metric filters (HTTP, runtime, process):
+
+```kql
+let MetricRows = union isfuzzy=true
+  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),
+  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
+MetricRows
+| where timestamp > ago(30m)
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where name has_any ("http", "server", "request", "duration", "runtime", "process", "cpu", "memory", "gc", "thread")
+| summarize points=count(), avgValue=avg(value), p95Value=percentile(value, 95), maxValue=max(value) by name, cloud_RoleName, bin(timestamp, 5m)
+| order by timestamp desc, name asc
+```
+
+Collector metrics pipeline self-check:
+
+```kql
+let MetricRows = union isfuzzy=true
+  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),
+  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
+MetricRows
+| where timestamp > ago(30m)
+| where name in~ (
+  "otelcol_receiver_accepted_metric_points",
+  "otelcol_exporter_sent_metric_points",
+  "otelcol_receiver_refused_metric_points",
+  "otelcol_exporter_send_failed_metric_points"
+)
+| summarize total=sum(value) by name, cloud_RoleName, bin(timestamp, 5m)
+| order by timestamp desc, name asc
+```
+
+If these Collector metrics are still empty in App Insights, first confirm the Collector self-scrape path inside the cluster. The current Collector Prometheus endpoint listens on the Pod IP at port `8888`, not on `127.0.0.1:8888` inside the Pod, so `kubectl port-forward` may fail with `connect: connection refused`; validate it from inside the cluster with `http://<collector-pod-ip>:8888/metrics`.
+
+If `customMetrics` does not yet show application metrics, use the `requests` table to observe request volume, failures, and latency:
+
+```kql
+requests
+| where timestamp > ago(30m)
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| summarize requestCount=count(), failedCount=countif(success == false), avgDurationMs=avg(duration), p95DurationMs=percentile(duration, 95) by cloud_RoleName, bin(timestamp, 5m)
+| order by timestamp desc
+```
+
 ### Quick Troubleshooting Script (PowerShell)
 
 ```powershell

@@ -318,6 +318,85 @@ union requests, dependencies, traces
 | order by timestamp desc
 ```
 
+### App Insights Metrics 核验 KQL（30 分钟）
+
+- OTel metrics 在 classic App Insights 中通常进入 `customMetrics` 表；workspace-based App Insights 中可能是 `AppMetrics` 表。下面的查询使用 `union isfuzzy=true` 同时兼容两种表。
+- 如果查询结果为空，优先检查应用 Pod 的 `OTEL_METRICS_EXPORTER=otlp`、Collector `metrics` pipeline，以及 gateway 的 `azuremonitor` exporter。
+- 指标名称会随语言、auto-instrumentation 版本和语义约定变化，建议先做发现查询，再按名称过滤。
+
+发现最近入库的指标名称：
+
+```kql
+let MetricRows = union isfuzzy=true
+  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),
+  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
+MetricRows
+| where timestamp > ago(30m)
+| summarize points=count(), lastSeen=max(timestamp) by name, cloud_RoleName
+| order by points desc
+```
+
+按当前两个生产服务过滤指标：
+
+```kql
+let MetricRows = union isfuzzy=true
+  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),
+  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
+MetricRows
+| where timestamp > ago(30m)
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+  or (
+    tostring(customDimensions["service.namespace"]) =~ "apps-prod"
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+  )
+| summarize points=count(), avgValue=avg(value), maxValue=max(value), lastSeen=max(timestamp) by name, cloud_RoleName
+| order by points desc
+```
+
+常用应用指标筛选（HTTP、运行时、进程）：
+
+```kql
+let MetricRows = union isfuzzy=true
+  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),
+  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
+MetricRows
+| where timestamp > ago(30m)
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where name has_any ("http", "server", "request", "duration", "runtime", "process", "cpu", "memory", "gc", "thread")
+| summarize points=count(), avgValue=avg(value), p95Value=percentile(value, 95), maxValue=max(value) by name, cloud_RoleName, bin(timestamp, 5m)
+| order by timestamp desc, name asc
+```
+
+Collector metrics pipeline 自检：
+
+```kql
+let MetricRows = union isfuzzy=true
+  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),
+  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
+MetricRows
+| where timestamp > ago(30m)
+| where name in~ (
+  "otelcol_receiver_accepted_metric_points",
+  "otelcol_exporter_sent_metric_points",
+  "otelcol_receiver_refused_metric_points",
+  "otelcol_exporter_send_failed_metric_points"
+)
+| summarize total=sum(value) by name, cloud_RoleName, bin(timestamp, 5m)
+| order by timestamp desc, name asc
+```
+
+如果这些 Collector 指标在 App Insights 中为空，先在集群内确认 Collector 是否已经自抓取成功。当前 Collector 的 Prometheus 端点监听在 Pod IP 的 `8888` 端口，而不是 Pod 内 `127.0.0.1:8888`，因此 `kubectl port-forward` 可能报 `connect: connection refused`；应从集群内访问 `http://<collector-pod-ip>:8888/metrics` 验证。
+
+如果 `customMetrics` 暂时没有应用指标，也可用 `requests` 表先观察请求量、失败数与延迟：
+
+```kql
+requests
+| where timestamp > ago(30m)
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| summarize requestCount=count(), failedCount=countif(success == false), avgDurationMs=avg(duration), p95DurationMs=percentile(duration, 95) by cloud_RoleName, bin(timestamp, 5m)
+| order by timestamp desc
+```
+
 ### 快速排查脚本（PowerShell）
 
 ```powershell

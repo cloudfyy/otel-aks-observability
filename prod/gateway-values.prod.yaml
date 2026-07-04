@@ -1,5 +1,5 @@
 # config-version: v1.0.1
-# config-updated: 2026-07-03
+# config-updated: 2026-07-05
 mode: deployment
 replicaCount: 3
 
@@ -92,6 +92,14 @@ config:
             cert_file: /etc/otel/tls/tls.crt
             key_file: /etc/otel/tls/tls.key
             client_ca_file: /etc/otel/tls/ca.crt
+    prometheus:
+      config:
+        scrape_configs:
+          - job_name: opentelemetry-collector
+            scrape_interval: 10s
+            static_configs:
+              - targets:
+                  - ${env:MY_POD_IP}:8888
 
   processors:
     memory_limiter:
@@ -124,7 +132,7 @@ config:
         processors: [memory_limiter, batch]
         exporters: [azuremonitor]
       metrics:
-        receivers: [otlp]
+        receivers: [otlp, prometheus]
         processors: [memory_limiter, batch]
         exporters: [azuremonitor]
       logs:
