@@ -326,6 +326,9 @@ $nsApp = "apps-prod"
 $dotnetApp = "otelapidemo"
 $pythonApp = "otelapidemo-python"
 $svc = "otel-agent-opentelemetry-collector"
+$nsIngress = "ingress-nginx"
+$ingressName = "otelapidemo"
+$ingressSvc = "ingress-nginx-controller"
 
 Write-Host "== 1) Component health =="
 kubectl get pods -n $nsObs -o wide
@@ -344,14 +347,26 @@ kubectl get deploy -n $nsApp $pythonApp -o jsonpath='{.spec.template.metadata.an
 kubectl get pods -n $nsApp -l app=$dotnetApp -o jsonpath='{range .items[*]}{.metadata.name}{" initContainers="}{range .spec.initContainers[*]}{.name}{","}{end}{"\n"}{end}'
 kubectl get pods -n $nsApp -l app=$pythonApp -o jsonpath='{range .items[*]}{.metadata.name}{" initContainers="}{range .spec.initContainers[*]}{.name}{","}{end}{"\n"}{end}'
 
-Write-Host "== 4) Generate test traffic =="
-$ingressAddress = kubectl get ingress -n $nsApp otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+Write-Host "== 4) Production Ingress status =="
+kubectl get ingressclass nginx
+kubectl get pods -n $nsIngress -l app.kubernetes.io/component=controller -o wide
+kubectl get svc -n $nsIngress $ingressSvc -o wide
+kubectl get svc -n $nsApp $dotnetApp $pythonApp -o wide
+kubectl get endpoints -n $nsApp $dotnetApp $pythonApp -o wide
+kubectl get ingress -n $nsApp $ingressName -o wide
+kubectl describe ingress -n $nsApp $ingressName
+kubectl get svc -n $nsIngress $ingressSvc -o jsonpath='{.metadata.annotations.service\.beta\.kubernetes\.io/port_80_health-probe_protocol}{"\n"}'
+kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- sh -c "curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/dotnet/weatherforecast; echo; curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/python/weatherforecast"
+
+Write-Host "== 5) Generate test traffic =="
+$ingressAddress = kubectl get ingress -n $nsApp $ingressName -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 if ([string]::IsNullOrEmpty($ingressAddress)) {
-  $ingressAddress = kubectl get ingress -n $nsApp otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+  $ingressAddress = kubectl get ingress -n $nsApp $ingressName -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 }
 if ([string]::IsNullOrEmpty($ingressAddress)) {
   Write-Host "Ingress address not ready"
 } else {
+  Test-NetConnection $ingressAddress -Port 80
   1..100 | ForEach-Object {
     try { Invoke-WebRequest -Uri ("http://{0}/dotnet/weatherforecast" -f $ingressAddress) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
     try { Invoke-WebRequest -Uri ("http://{0}/python/weatherforecast" -f $ingressAddress) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
@@ -359,7 +374,7 @@ if ([string]::IsNullOrEmpty($ingressAddress)) {
   Write-Host "Traffic sent to http://$ingressAddress/dotnet/weatherforecast and /python/weatherforecast"
 }
 
-Write-Host "== 5) Key Collector logs (last 10m) =="
+Write-Host "== 6) Key Collector logs (last 10m) =="
 kubectl logs -n $nsObs -l app.kubernetes.io/instance=otel-agent --since=10m | Select-String -Pattern "forbidden|error|failed|otlp|gateway"
 kubectl logs -n $nsObs -l app.kubernetes.io/instance=otel-gateway --since=10m | Select-String -Pattern "error|failed|azuremonitor|export|401|403|404|429|5[0-9][0-9]"
 ```
@@ -374,6 +389,9 @@ NS_APP="apps-prod"
 DOTNET_APP="otelapidemo"
 PYTHON_APP="otelapidemo-python"
 SVC="otel-agent-opentelemetry-collector"
+NS_INGRESS="ingress-nginx"
+INGRESS_NAME="otelapidemo"
+INGRESS_SVC="ingress-nginx-controller"
 
 echo "== 1) Component health =="
 kubectl get pods -n "$NS_OBS" -o wide
@@ -392,10 +410,21 @@ kubectl get deploy -n "$NS_APP" "$PYTHON_APP" -o jsonpath='{.spec.template.metad
 kubectl get pods -n "$NS_APP" -l app="$DOTNET_APP" -o jsonpath='{range .items[*]}{.metadata.name}{" initContainers="}{range .spec.initContainers[*]}{.name}{","}{end}{"\n"}{end}'
 kubectl get pods -n "$NS_APP" -l app="$PYTHON_APP" -o jsonpath='{range .items[*]}{.metadata.name}{" initContainers="}{range .spec.initContainers[*]}{.name}{","}{end}{"\n"}{end}'
 
-echo "== 4) Generate test traffic =="
-INGRESS_ADDRESS=$(kubectl get ingress -n "$NS_APP" otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "== 4) Production Ingress status =="
+kubectl get ingressclass nginx
+kubectl get pods -n "$NS_INGRESS" -l app.kubernetes.io/component=controller -o wide
+kubectl get svc -n "$NS_INGRESS" "$INGRESS_SVC" -o wide
+kubectl get svc -n "$NS_APP" "$DOTNET_APP" "$PYTHON_APP" -o wide
+kubectl get endpoints -n "$NS_APP" "$DOTNET_APP" "$PYTHON_APP" -o wide
+kubectl get ingress -n "$NS_APP" "$INGRESS_NAME" -o wide
+kubectl describe ingress -n "$NS_APP" "$INGRESS_NAME"
+kubectl get svc -n "$NS_INGRESS" "$INGRESS_SVC" -o jsonpath='{.metadata.annotations.service\.beta\.kubernetes\.io/port_80_health-probe_protocol}{"\n"}'
+kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- sh -c "curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/dotnet/weatherforecast; echo; curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/python/weatherforecast"
+
+echo "== 5) Generate test traffic =="
+INGRESS_ADDRESS=$(kubectl get ingress -n "$NS_APP" "$INGRESS_NAME" -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 if [ -z "${INGRESS_ADDRESS}" ]; then
-  INGRESS_ADDRESS=$(kubectl get ingress -n "$NS_APP" otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+  INGRESS_ADDRESS=$(kubectl get ingress -n "$NS_APP" "$INGRESS_NAME" -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 fi
 if [ -n "${INGRESS_ADDRESS}" ]; then
   for i in $(seq 1 100); do
@@ -407,7 +436,7 @@ else
   echo "Ingress address not ready"
 fi
 
-echo "== 5) Key Collector logs (last 10m) =="
+echo "== 6) Key Collector logs (last 10m) =="
 kubectl logs -n "$NS_OBS" -l app.kubernetes.io/instance=otel-agent --since=10m | egrep -i "forbidden|error|failed|otlp|gateway" || true
 kubectl logs -n "$NS_OBS" -l app.kubernetes.io/instance=otel-gateway --since=10m | egrep -i "error|failed|azuremonitor|export|401|403|404|429|5[0-9][0-9]" || true
 ```
