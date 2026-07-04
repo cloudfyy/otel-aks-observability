@@ -8,6 +8,7 @@ metadata:
     otel.config/updated: "2026-07-04"
 spec:
   type: ClusterIP
+  internalTrafficPolicy: Local
   selector:
     app.kubernetes.io/instance: otel-agent
     app.kubernetes.io/name: opentelemetry-collector
