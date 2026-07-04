@@ -4,12 +4,16 @@
 
 ## 文件清单
 
-- otle-gateway-myvalues.yaml
-- inst-crd-dotnet.yaml
-- inst-crd-python.yaml
-- otelapidemo-dotnet.yaml
-- otelapidemo-python.yaml
-- certmgr-test.yaml
+- otle-gateway-myvalues.yaml：当前开发主用的 Collector values（单 Collector）。
+- current-values.yaml：开发阶段历史 values 版本（可用于回滚/比对）。
+- myvalues.yaml：开发阶段自定义 values 样例（可用于试验参数）。
+- inst-crd-dotnet.yaml：.NET 自动注入 Instrumentation CRD。
+- inst-crd-python.yaml：Python 自动注入 Instrumentation CRD。
+- otelapidemo-dotnet.yaml：.NET 示例应用部署清单。
+- otelapidemo-python.yaml：Python 示例应用部署清单。
+- certmgr-test.yaml：cert-manager 功能测试清单（开发验证用途）。
+- README.dev.md：当前中文开发部署说明。
+- README.dev.en.md：英文开发部署说明。
 
 ## 前置条件
 
@@ -105,4 +109,5 @@ metadata:
 - 当前开发基线采用单 Collector 部署。
 - 现有 dev values 同时包含 debug 与 azuremonitor exporter，便于联调与排障。
 - 如果在 Azure Monitor 中看不到日志，先检查应用侧是否实际产生日志，以及 collector 的 sent/failed 计数器。
+- `current-values.yaml` 与 `myvalues.yaml` 作为历史/备用 values，不在默认命令中直接引用。
 - 为提升 CRD 复用性，建议将服务级 OTEL_SERVICE_NAME 放在应用 Deployment 中，而非共享 Instrumentation CRD。

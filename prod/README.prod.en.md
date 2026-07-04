@@ -4,16 +4,18 @@
 
 ## Files
 
-- networkpolicy.prod.yaml
-- collector-tls.prod.yaml
-- gateway-values.prod.yaml
-- agent-values.prod.yaml
-- otel-agent-service.prod.yaml
-- otel-agent-rbac.prod.yaml
-- inst-crd-dotnet.prod.yaml
-- inst-crd-python.prod.yaml
-- alerts-kql.prod.md
-- version-baseline.current.md
+- networkpolicy.prod.yaml: production network policies (default deny + explicit allow rules).
+- collector-tls.prod.yaml: cert-manager certificates and issuers for gateway/agent mTLS.
+- gateway-values.prod.yaml: Helm values for gateway Collector (export and scaling behavior).
+- agent-values.prod.yaml: Helm values for agent Collector (node-side receive/forward).
+- otel-agent-service.prod.yaml: stable OTLP Service endpoint for application traffic into agent.
+- otel-agent-rbac.prod.yaml: RBAC required by agent (k8sattributes permissions).
+- inst-crd-dotnet.prod.yaml: production .NET auto-instrumentation CRD.
+- inst-crd-python.prod.yaml: production Python auto-instrumentation CRD.
+- alerts-kql.prod.md: alerting and KQL guidance for production.
+- version-baseline.current.md: production version baseline and change ledger.
+- README.prod.md: Chinese production deployment guide.
+- README.prod.en.md: this English production deployment guide.
 
 ## Prerequisites
 
@@ -169,7 +171,7 @@ metadata:
 
 - This baseline disables debug exporter and keeps azuremonitor only.
 - Sampling is set to 10% (`0.1`) for production cost control.
-- Agent forwards OTLP to gateway using service DNS `otel-gateway-opentelemetry-collector.observability.svc.cluster.local:4317`.
+- Applications send OTLP to `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317`; agent then forwards traffic to gateway.
 - The same agent/gateway architecture applies to Python workloads; only the Instrumentation CRD and application annotation differ.
 - For Python, business logs still require application logging output; auto-instrumentation enables OTLP log export but does not create business log messages by itself.
 

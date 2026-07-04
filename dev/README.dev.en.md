@@ -4,12 +4,16 @@
 
 ## Files
 
-- otle-gateway-myvalues.yaml
-- inst-crd-dotnet.yaml
-- inst-crd-python.yaml
-- otelapidemo-dotnet.yaml
-- otelapidemo-python.yaml
-- certmgr-test.yaml
+- otle-gateway-myvalues.yaml: primary Collector values for development (single-collector).
+- current-values.yaml: historical development values (rollback/comparison reference).
+- myvalues.yaml: custom development values sample for experiments.
+- inst-crd-dotnet.yaml: .NET auto-instrumentation CRD.
+- inst-crd-python.yaml: Python auto-instrumentation CRD.
+- otelapidemo-dotnet.yaml: .NET sample app manifest.
+- otelapidemo-python.yaml: Python sample app manifest.
+- certmgr-test.yaml: cert-manager test manifest for development validation.
+- README.dev.md: Chinese development deployment guide.
+- README.dev.en.md: this English development deployment guide.
 
 ## Prerequisites
 
@@ -105,4 +109,5 @@ metadata:
 - This development baseline uses a single collector deployment.
 - Current dev values include debug and azuremonitor exporters for troubleshooting.
 - If logs are not visible in Azure Monitor, first verify app-side log generation and collector sent/failed counters.
+- `current-values.yaml` and `myvalues.yaml` are kept as historical/alternate values and are not referenced by default commands.
 - For better CRD reuse, keep service-specific OTEL_SERVICE_NAME in application Deployment, not in shared Instrumentation CRD.

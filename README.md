@@ -36,16 +36,21 @@
 ## 关键文件索引
 
 - 开发 collector values：[dev/otle-gateway-myvalues.yaml](dev/otle-gateway-myvalues.yaml)
+- 开发 collector values（历史/备用）：[dev/current-values.yaml](dev/current-values.yaml)、[dev/myvalues.yaml](dev/myvalues.yaml)
 - 开发 .NET 注入 CRD：[dev/inst-crd-dotnet.yaml](dev/inst-crd-dotnet.yaml)
 - 开发 Python 注入 CRD：[dev/inst-crd-python.yaml](dev/inst-crd-python.yaml)
 - 生产 gateway values：[prod/gateway-values.prod.yaml](prod/gateway-values.prod.yaml)
 - 生产 agent values：[prod/agent-values.prod.yaml](prod/agent-values.prod.yaml)
+- 生产 agent OTLP 入口 Service：[prod/otel-agent-service.prod.yaml](prod/otel-agent-service.prod.yaml)
+- 生产 agent RBAC（k8sattributes 权限）：[prod/otel-agent-rbac.prod.yaml](prod/otel-agent-rbac.prod.yaml)
 - 生产网络策略：[prod/networkpolicy.prod.yaml](prod/networkpolicy.prod.yaml)
 - 生产证书配置：[prod/collector-tls.prod.yaml](prod/collector-tls.prod.yaml)
+- 生产告警查询建议：[prod/alerts-kql.prod.md](prod/alerts-kql.prod.md)
 - 生产版本台账：[prod/version-baseline.current.md](prod/version-baseline.current.md)
 
 ## 说明
 
 - dev 配置偏向可观测与排障，通常会保留更多调试项
 - prod 配置偏向稳定性与安全性，强调最小权限、重试队列、证书与网络隔离
+- prod 文档内已包含“排查步骤 + PowerShell/bash 脚本 + App Insights 最终核验 KQL（建议等待 3-10 分钟）”
 - 建议固定镜像与 chart 版本，避免使用 latest

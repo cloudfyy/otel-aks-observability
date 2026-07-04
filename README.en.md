@@ -36,16 +36,21 @@ Main capabilities:
 ## Key Files
 
 - Dev collector values: [dev/otle-gateway-myvalues.yaml](dev/otle-gateway-myvalues.yaml)
+- Dev collector values (legacy/alternate): [dev/current-values.yaml](dev/current-values.yaml), [dev/myvalues.yaml](dev/myvalues.yaml)
 - Dev .NET Instrumentation CRD: [dev/inst-crd-dotnet.yaml](dev/inst-crd-dotnet.yaml)
 - Dev Python Instrumentation CRD: [dev/inst-crd-python.yaml](dev/inst-crd-python.yaml)
 - Prod gateway values: [prod/gateway-values.prod.yaml](prod/gateway-values.prod.yaml)
 - Prod agent values: [prod/agent-values.prod.yaml](prod/agent-values.prod.yaml)
+- Prod agent OTLP entry Service: [prod/otel-agent-service.prod.yaml](prod/otel-agent-service.prod.yaml)
+- Prod agent RBAC (k8sattributes permissions): [prod/otel-agent-rbac.prod.yaml](prod/otel-agent-rbac.prod.yaml)
 - Prod network policy: [prod/networkpolicy.prod.yaml](prod/networkpolicy.prod.yaml)
 - Prod certificate config: [prod/collector-tls.prod.yaml](prod/collector-tls.prod.yaml)
+- Prod alert query guidance: [prod/alerts-kql.prod.md](prod/alerts-kql.prod.md)
 - Prod version ledger: [prod/version-baseline.current.md](prod/version-baseline.current.md)
 
 ## Notes
 
 - Dev configuration is optimized for observability and troubleshooting, and may include additional debug settings.
 - Prod configuration is optimized for stability and security, with least privilege, retry/queue controls, certificates, and network isolation.
+- The production guide includes troubleshooting steps, PowerShell/bash scripts, and final App Insights KQL verification (wait 3-10 minutes for ingestion).
 - Pin image and chart versions; avoid using latest.

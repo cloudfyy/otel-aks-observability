@@ -4,16 +4,18 @@
 
 ## 文件清单
 
-- networkpolicy.prod.yaml
-- collector-tls.prod.yaml
-- gateway-values.prod.yaml
-- agent-values.prod.yaml
-- otel-agent-service.prod.yaml
-- otel-agent-rbac.prod.yaml
-- inst-crd-dotnet.prod.yaml
-- inst-crd-python.prod.yaml
-- alerts-kql.prod.md
-- version-baseline.current.md
+- networkpolicy.prod.yaml：生产网络策略（默认拒绝 + 必要放通）。
+- collector-tls.prod.yaml：cert-manager 证书与 Issuer 资源（gateway/agent mTLS）。
+- gateway-values.prod.yaml：gateway Collector Helm values（导出与扩展策略）。
+- agent-values.prod.yaml：agent Collector Helm values（节点侧接入与转发）。
+- otel-agent-service.prod.yaml：agent OTLP 稳定入口 Service（应用上报目标）。
+- otel-agent-rbac.prod.yaml：agent 所需 RBAC（k8sattributes 读取权限）。
+- inst-crd-dotnet.prod.yaml：生产 .NET 自动注入 Instrumentation CRD。
+- inst-crd-python.prod.yaml：生产 Python 自动注入 Instrumentation CRD。
+- alerts-kql.prod.md：生产告警与 KQL 建议。
+- version-baseline.current.md：生产版本基线台账与变更记录。
+- README.prod.md：当前中文生产部署说明。
+- README.prod.en.md：英文生产部署说明。
 
 ## 前置条件
 
@@ -169,7 +171,7 @@ metadata:
 
 - 当前生产基线已关闭 debug exporter，仅保留 azuremonitor。
 - 采样率设置为 10%（`0.1`），用于生产成本控制。
-- Agent 通过服务 DNS `otel-gateway-opentelemetry-collector.observability.svc.cluster.local:4317` 将 OTLP 转发至 gateway。
+- 应用通过服务 DNS `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317` 上报到 agent，再由 agent 转发至 gateway。
 - 相同的 agent/gateway 架构同样适用于 Python 负载；差异仅在 Instrumentation CRD 与应用注解。
 - 对 Python 来说，业务日志仍需应用主动输出；自动注入可开启 OTLP 日志导出，但不会自动产生日志内容。
 
