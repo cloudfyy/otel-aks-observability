@@ -183,6 +183,18 @@ metadata:
 6. 检查 Collector 自监控：查看 agent/gateway 的 exporter queue 与 error 日志。
 7. 验证 App Insights：先用无过滤 KQL 看近 30-60 分钟总量，再按 `cloud_RoleName` 或 `service.name` 过滤。
 
+### App Insights 最终核验 KQL（30 分钟）
+
+- 在发送测试流量、重启 Pod、或调整 Collector/Instrumentation 配置后，建议先等待 3-10 分钟再查询，以避免摄取延迟导致误判。
+
+```kql
+union requests, dependencies, traces
+| where timestamp > ago(30m)
+| where cloud_RoleName =~ "otelapidemo"
+  or tostring(customDimensions["service.name"]) =~ "otelapidemo"
+| order by timestamp desc
+```
+
 ### 快速排查脚本（PowerShell）
 
 ```powershell

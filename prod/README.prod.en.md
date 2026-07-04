@@ -183,6 +183,18 @@ metadata:
 6. Check Collector self-observability: inspect exporter queue and error logs on agent/gateway.
 7. Validate in App Insights: run broad KQL first, then narrow by `cloud_RoleName` or `service.name`.
 
+### Final App Insights Verification KQL (30m)
+
+- After sending test traffic, restarting Pods, or changing Collector/Instrumentation config, wait 3-10 minutes before querying to avoid false negatives from ingestion delay.
+
+```kql
+union requests, dependencies, traces
+| where timestamp > ago(30m)
+| where cloud_RoleName =~ "otelapidemo"
+  or tostring(customDimensions["service.name"]) =~ "otelapidemo"
+| order by timestamp desc
+```
+
 ### Quick Troubleshooting Script (PowerShell)
 
 ```powershell
