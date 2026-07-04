@@ -230,12 +230,17 @@ spec:
 ### App Insights 最终核验 KQL（30 分钟）
 
 - 在发送测试流量、重启 Pod、或调整 Collector/Instrumentation 配置后，建议先等待 3-10 分钟再查询，以避免摄取延迟导致误判。
+- Azure Monitor / App Insights 中的 `cloud_RoleName` 通常由 Kubernetes namespace 与服务名组合而成，例如 `.NET` 为 `apps-prod.otelapidemo`，Python 为 `apps-prod.otelapidemo-python`。
+- 如果不同环境中的 `cloud_RoleName` 映射有差异，可使用 `customDimensions["service.namespace"]` 和 `customDimensions["service.name"]` 作为兜底过滤条件。
 
 ```kql
 union requests, dependencies, traces
 | where timestamp > ago(30m)
-| where cloud_RoleName =~ "otelapidemo"
-  or tostring(customDimensions["service.name"]) =~ "otelapidemo"
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+  or (
+    tostring(customDimensions["service.namespace"]) =~ "apps-prod"
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+  )
 | order by timestamp desc
 ```
 

@@ -230,12 +230,17 @@ After applying the Instrumentation, restart the Python Deployment and send 50-20
 ### Final App Insights Verification KQL (30m)
 
 - After sending test traffic, restarting Pods, or changing Collector/Instrumentation config, wait 3-10 minutes before querying to avoid false negatives from ingestion delay.
+- In Azure Monitor / App Insights, `cloud_RoleName` is usually composed from the Kubernetes namespace and service name. For example, `.NET` is `apps-prod.otelapidemo`, and Python is `apps-prod.otelapidemo-python`.
+- If `cloud_RoleName` mapping differs in another environment, use `customDimensions["service.namespace"]` and `customDimensions["service.name"]` as fallback filters.
 
 ```kql
 union requests, dependencies, traces
 | where timestamp > ago(30m)
-| where cloud_RoleName =~ "otelapidemo"
-  or tostring(customDimensions["service.name"]) =~ "otelapidemo"
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+  or (
+    tostring(customDimensions["service.namespace"]) =~ "apps-prod"
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+  )
 | order by timestamp desc
 ```
 
