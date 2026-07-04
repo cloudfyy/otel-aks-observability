@@ -8,6 +8,7 @@
 - collector-tls.prod.yaml
 - gateway-values.prod.yaml
 - agent-values.prod.yaml
+- otel-agent-service.prod.yaml
 - otel-agent-rbac.prod.yaml
 - inst-crd-dotnet.prod.yaml
 - inst-crd-python.prod.yaml
@@ -29,10 +30,11 @@
 3. Apply cert-manager TLS manifests for gateway and agent certificates.
 4. Deploy gateway collector (Deployment, multi-replica).
 5. Deploy agent collector (DaemonSet).
-6. Apply agent RBAC manifest (k8sattributes metadata extraction permissions).
-7. Apply Instrumentation CRD.
-8. Deploy the otelapidemo sample application.
-9. Update application annotation to use dotnet-auto-prod.
+6. Apply agent Service manifest (stable OTLP endpoint for applications).
+7. Apply agent RBAC manifest (k8sattributes metadata extraction permissions).
+8. Apply Instrumentation CRD.
+9. Deploy the otelapidemo sample application.
+10. Update application annotation to use dotnet-auto-prod.
 
 ## Commands
 
@@ -63,19 +65,23 @@ helm upgrade --install otel-agent open-telemetry/opentelemetry-collector \
   -n observability --create-namespace \
   -f ./prod/agent-values.prod.yaml
 
-# 6) Apply agent RBAC (k8sattributes permissions)
+# 6) Apply agent Service (stable OTLP endpoint)
+kubectl apply -f ./prod/otel-agent-service.prod.yaml
+
+# 7) Apply agent RBAC (k8sattributes permissions)
 kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 
-# 7) Instrumentation
+# 8) Instrumentation
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 8) Deploy otelapidemo sample app
+# 9) Deploy otelapidemo sample app
 kubectl apply -n apps-prod -f ./dev/otelapidemo-dotnet.yaml
 
-# 9) Verify
+# 10) Verify
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
+kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
 ```
@@ -109,32 +115,37 @@ helm upgrade --install otel-agent open-telemetry/opentelemetry-collector `
   -n observability --create-namespace `
   -f ./prod/agent-values.prod.yaml
 
-# 6) Apply agent RBAC (k8sattributes permissions)
+# 6) Apply agent Service (stable OTLP endpoint)
+kubectl apply -f ./prod/otel-agent-service.prod.yaml
+
+# 7) Apply agent RBAC (k8sattributes permissions)
 kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 
-# 7) Instrumentation
+# 8) Instrumentation
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 8) Deploy otelapidemo sample app
+# 9) Deploy otelapidemo sample app
 kubectl apply -n apps-prod -f ./dev/otelapidemo-dotnet.yaml
 
-# 9) Verify
+# 10) Verify
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
+kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get instrumentation -n observability
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
 
-# 10) Collector pipeline counters (gateway)
+# 11) Collector pipeline counters (gateway)
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-gateway -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
-# 11) Switch app annotation to production instrumentation
-kubectl annotate deployment otelapidemo `
+# 12) Switch app pod-template annotation to production instrumentation
+kubectl patch deployment otelapidemo `
   -n apps-prod `
-  instrumentation.opentelemetry.io/inject-dotnet="observability/dotnet-auto-prod" --overwrite
+  --type merge `
+  -p '{"spec":{"template":{"metadata":{"annotations":{"instrumentation.opentelemetry.io/inject-dotnet":"observability/dotnet-auto-prod"}}}}}'
 
 kubectl rollout restart deployment/otelapidemo -n apps-prod
 kubectl rollout status deployment/otelapidemo -n apps-prod
