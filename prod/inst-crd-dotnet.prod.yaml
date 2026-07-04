@@ -21,6 +21,8 @@ spec:
         value: grpc
       - name: OTEL_LOGS_EXPORTER
         value: otlp
+      - name: OTEL_METRICS_EXPORTER
+        value: otlp
       - name: OTEL_DOTNET_AUTO_LOGS_ENABLED
         value: "true"
       - name: OTEL_RESOURCE_ATTRIBUTES
