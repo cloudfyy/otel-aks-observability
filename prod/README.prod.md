@@ -12,6 +12,8 @@
 - otel-agent-rbac.prod.yaml：agent 所需 RBAC（k8sattributes 读取权限）。
 - inst-crd-dotnet.prod.yaml：生产 .NET 自动注入 Instrumentation CRD。
 - inst-crd-python.prod.yaml：生产 Python 自动注入 Instrumentation CRD。
+- otelapidemo-dotnet.yaml：生产 .NET 示例应用清单（已内置生产注解）。
+- otelapidemo-python.yaml：生产 Python 示例清单模板（已内置生产注解，当前仅示例用途，尚需进一步测试）。
 - alerts-kql.prod.md：生产告警与 KQL 建议。
 - version-baseline.current.md：生产版本基线台账与变更记录。
 - README.prod.md：当前中文生产部署说明。
@@ -35,8 +37,8 @@
 6. 应用 agent Service 清单（为应用提供稳定 OTLP 入口）。
 7. 应用 agent 的 RBAC 清单（k8sattributes 元数据提取权限）。
 8. 应用 Instrumentation CRD。
-9. 部署 otelapidemo 示例应用。
-10. 更新应用注解，切换到 dotnet-auto-prod。
+9. 部署 otelapidemo 示例应用（优先 .NET；Python 清单当前仅示例用途，需先补充测试后再用于生产）。
+10. 验证基础状态。
 
 ## 命令
 
@@ -77,8 +79,10 @@ kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) 部署 otelapidemo 示例应用
-kubectl apply -n apps-prod -f ./dev/otelapidemo-dotnet.yaml
+# 9) 部署 otelapidemo 示例应用（prod 清单）
+kubectl apply -n apps-prod -f ./prod/otelapidemo-dotnet.yaml
+# 可选：Python 清单当前仅示例用途，建议在测试通过后再启用
+# kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
 
 # 10) 验证
 kubectl get pods -n observability
@@ -127,8 +131,10 @@ kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) 部署 otelapidemo 示例应用
-kubectl apply -n apps-prod -f ./dev/otelapidemo-dotnet.yaml
+# 9) 部署 otelapidemo 示例应用（prod 清单）
+kubectl apply -n apps-prod -f ./prod/otelapidemo-dotnet.yaml
+# 可选：Python 清单当前仅示例用途，建议在测试通过后再启用
+# kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
 
 # 10) 验证
 kubectl get pods -n observability
@@ -143,14 +149,8 @@ $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-gate
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
-# 12) 将应用 Pod 模板注解切换到生产 instrumentation
-kubectl patch deployment otelapidemo `
-  -n apps-prod `
-  --type merge `
-  -p '{"spec":{"template":{"metadata":{"annotations":{"instrumentation.opentelemetry.io/inject-dotnet":"observability/dotnet-auto-prod"}}}}}'
-
-kubectl rollout restart deployment/otelapidemo -n apps-prod
-kubectl rollout status deployment/otelapidemo -n apps-prod
+# 12) （可选）如你是从旧版 dev 清单迁移，才需要手工 patch 注解并重启
+# 新的 ./prod/otelapidemo-*.yaml 已内置生产注解，无需执行该步骤
 ```
 
 ## 应用注解示例
@@ -173,6 +173,7 @@ metadata:
 - 采样率设置为 10%（`0.1`），用于生产成本控制。
 - 应用通过服务 DNS `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317` 上报到 agent，再由 agent 转发至 gateway。
 - 相同的 agent/gateway 架构同样适用于 Python 负载；差异仅在 Instrumentation CRD 与应用注解。
+- `otelapidemo-python.yaml` 目前仅作为示例模板，尚未完成完整生产验证，建议先在独立环境完成回归测试后再投产。
 - 对 Python 来说，业务日志仍需应用主动输出；自动注入可开启 OTLP 日志导出，但不会自动产生日志内容。
 
 ## 排查步骤（访问应用后 AI 无数据）

@@ -43,6 +43,8 @@ Main capabilities:
 - Prod agent values: [prod/agent-values.prod.yaml](prod/agent-values.prod.yaml)
 - Prod agent OTLP entry Service: [prod/otel-agent-service.prod.yaml](prod/otel-agent-service.prod.yaml)
 - Prod agent RBAC (k8sattributes permissions): [prod/otel-agent-rbac.prod.yaml](prod/otel-agent-rbac.prod.yaml)
+- Prod .NET sample app manifest: [prod/otelapidemo-dotnet.yaml](prod/otelapidemo-dotnet.yaml)
+- Prod Python sample manifest template (example-only, pending validation): [prod/otelapidemo-python.yaml](prod/otelapidemo-python.yaml)
 - Prod network policy: [prod/networkpolicy.prod.yaml](prod/networkpolicy.prod.yaml)
 - Prod certificate config: [prod/collector-tls.prod.yaml](prod/collector-tls.prod.yaml)
 - Prod alert query guidance: [prod/alerts-kql.prod.md](prod/alerts-kql.prod.md)

@@ -43,6 +43,8 @@
 - 生产 agent values：[prod/agent-values.prod.yaml](prod/agent-values.prod.yaml)
 - 生产 agent OTLP 入口 Service：[prod/otel-agent-service.prod.yaml](prod/otel-agent-service.prod.yaml)
 - 生产 agent RBAC（k8sattributes 权限）：[prod/otel-agent-rbac.prod.yaml](prod/otel-agent-rbac.prod.yaml)
+- 生产 .NET 示例应用清单：[prod/otelapidemo-dotnet.yaml](prod/otelapidemo-dotnet.yaml)
+- 生产 Python 示例清单模板（仅示例、尚需测试）：[prod/otelapidemo-python.yaml](prod/otelapidemo-python.yaml)
 - 生产网络策略：[prod/networkpolicy.prod.yaml](prod/networkpolicy.prod.yaml)
 - 生产证书配置：[prod/collector-tls.prod.yaml](prod/collector-tls.prod.yaml)
 - 生产告警查询建议：[prod/alerts-kql.prod.md](prod/alerts-kql.prod.md)

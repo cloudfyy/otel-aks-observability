@@ -12,6 +12,8 @@
 - otel-agent-rbac.prod.yaml: RBAC required by agent (k8sattributes permissions).
 - inst-crd-dotnet.prod.yaml: production .NET auto-instrumentation CRD.
 - inst-crd-python.prod.yaml: production Python auto-instrumentation CRD.
+- otelapidemo-dotnet.yaml: production .NET sample app manifest (production annotation preconfigured).
+- otelapidemo-python.yaml: production Python sample manifest template (production annotation preconfigured; example-only for now and requires further validation).
 - alerts-kql.prod.md: alerting and KQL guidance for production.
 - version-baseline.current.md: production version baseline and change ledger.
 - README.prod.md: Chinese production deployment guide.
@@ -35,8 +37,8 @@
 6. Apply agent Service manifest (stable OTLP endpoint for applications).
 7. Apply agent RBAC manifest (k8sattributes metadata extraction permissions).
 8. Apply Instrumentation CRD.
-9. Deploy the otelapidemo sample application.
-10. Update application annotation to use dotnet-auto-prod.
+9. Deploy otelapidemo sample applications (.NET first; Python manifest is currently example-only and should be validated before production use).
+10. Verify baseline status.
 
 ## Commands
 
@@ -77,8 +79,10 @@ kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) Deploy otelapidemo sample app
-kubectl apply -n apps-prod -f ./dev/otelapidemo-dotnet.yaml
+# 9) Deploy otelapidemo sample apps (prod manifests)
+kubectl apply -n apps-prod -f ./prod/otelapidemo-dotnet.yaml
+# Optional: Python manifest is example-only for now; enable after validation
+# kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
 
 # 10) Verify
 kubectl get pods -n observability
@@ -127,8 +131,10 @@ kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) Deploy otelapidemo sample app
-kubectl apply -n apps-prod -f ./dev/otelapidemo-dotnet.yaml
+# 9) Deploy otelapidemo sample apps (prod manifests)
+kubectl apply -n apps-prod -f ./prod/otelapidemo-dotnet.yaml
+# Optional: Python manifest is example-only for now; enable after validation
+# kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
 
 # 10) Verify
 kubectl get pods -n observability
@@ -143,14 +149,8 @@ $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-gate
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
-# 12) Switch app pod-template annotation to production instrumentation
-kubectl patch deployment otelapidemo `
-  -n apps-prod `
-  --type merge `
-  -p '{"spec":{"template":{"metadata":{"annotations":{"instrumentation.opentelemetry.io/inject-dotnet":"observability/dotnet-auto-prod"}}}}}'
-
-kubectl rollout restart deployment/otelapidemo -n apps-prod
-kubectl rollout status deployment/otelapidemo -n apps-prod
+# 12) (Optional) Only needed when migrating old dev manifests
+# New ./prod/otelapidemo-*.yaml already include production annotations
 ```
 
 ## Application Annotation Example
@@ -173,6 +173,7 @@ metadata:
 - Sampling is set to 10% (`0.1`) for production cost control.
 - Applications send OTLP to `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317`; agent then forwards traffic to gateway.
 - The same agent/gateway architecture applies to Python workloads; only the Instrumentation CRD and application annotation differ.
+- `otelapidemo-python.yaml` is currently provided as an example template only; complete production validation is still pending.
 - For Python, business logs still require application logging output; auto-instrumentation enables OTLP log export but does not create business log messages by itself.
 
 ## Troubleshooting Steps (No Data in AI After App Access)
