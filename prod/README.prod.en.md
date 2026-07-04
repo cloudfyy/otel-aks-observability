@@ -173,6 +173,90 @@ metadata:
 - The same agent/gateway architecture applies to Python workloads; only the Instrumentation CRD and application annotation differ.
 - For Python, business logs still require application logging output; auto-instrumentation enables OTLP log export but does not create business log messages by itself.
 
+## Troubleshooting Steps (No Data in AI After App Access)
+
+1. Check component health: all agent/gateway Pods in `observability` must be `Running`.
+2. Check OTLP entry service: `otel-agent-opentelemetry-collector` must exist and have endpoints.
+3. Check auto-injection: app Pod annotation should be `observability/dotnet-auto-prod`, and `opentelemetry-auto-instrumentation-dotnet` initContainer must exist.
+4. Check Instrumentation CRD: verify endpoint/sampler settings on `dotnet-auto-prod`.
+5. Send test traffic: hit business endpoint 50-200 times to avoid false negatives under sampling.
+6. Check Collector self-observability: inspect exporter queue and error logs on agent/gateway.
+7. Validate in App Insights: run broad KQL first, then narrow by `cloud_RoleName` or `service.name`.
+
+### Quick Troubleshooting Script (PowerShell)
+
+```powershell
+$nsObs = "observability"
+$nsApp = "apps-prod"
+$app = "otelapidemo"
+$svc = "otel-agent-opentelemetry-collector"
+
+Write-Host "== 1) Component health =="
+kubectl get pods -n $nsObs -o wide
+kubectl get pods -n $nsApp -l app=$app -o wide
+
+Write-Host "== 2) OTLP entry service =="
+kubectl get svc -n $nsObs $svc -o wide
+kubectl get endpoints -n $nsObs $svc -o wide
+
+Write-Host "== 3) Instrumentation and app annotation =="
+kubectl get instrumentation -n $nsObs dotnet-auto-prod -o yaml
+kubectl get deploy -n $nsApp $app -o jsonpath='{.spec.template.metadata.annotations.instrumentation\.opentelemetry\.io/inject-dotnet}{"`n"}'
+
+Write-Host "== 4) Generate test traffic =="
+$lb = kubectl get svc -n $nsApp $app -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+if ([string]::IsNullOrEmpty($lb)) {
+  Write-Host "LoadBalancer IP not ready"
+} else {
+  1..100 | ForEach-Object {
+    try { Invoke-WebRequest -Uri ("http://{0}/weatherforecast" -f $lb) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
+  }
+  Write-Host "Traffic sent to http://$lb/weatherforecast"
+}
+
+Write-Host "== 5) Key Collector logs (last 10m) =="
+kubectl logs -n $nsObs -l app.kubernetes.io/instance=otel-agent --since=10m | Select-String -Pattern "forbidden|error|failed|otlp|gateway"
+kubectl logs -n $nsObs -l app.kubernetes.io/instance=otel-gateway --since=10m | Select-String -Pattern "error|failed|azuremonitor|export|401|403|404|429|5[0-9][0-9]"
+```
+
+### Quick Troubleshooting Script (bash)
+
+```bash
+set -euo pipefail
+
+NS_OBS="observability"
+NS_APP="apps-prod"
+APP="otelapidemo"
+SVC="otel-agent-opentelemetry-collector"
+
+echo "== 1) Component health =="
+kubectl get pods -n "$NS_OBS" -o wide
+kubectl get pods -n "$NS_APP" -l app="$APP" -o wide
+
+echo "== 2) OTLP entry service =="
+kubectl get svc -n "$NS_OBS" "$SVC" -o wide
+kubectl get endpoints -n "$NS_OBS" "$SVC" -o wide
+
+echo "== 3) Instrumentation and app annotation =="
+kubectl get instrumentation -n "$NS_OBS" dotnet-auto-prod -o yaml
+kubectl get deploy -n "$NS_APP" "$APP" -o jsonpath='{.spec.template.metadata.annotations.instrumentation\.opentelemetry\.io/inject-dotnet}{"\n"}'
+
+echo "== 4) Generate test traffic =="
+LB_IP=$(kubectl get svc -n "$NS_APP" "$APP" -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+if [ -n "${LB_IP}" ]; then
+  for i in $(seq 1 100); do
+    curl -sS "http://${LB_IP}/weatherforecast" >/dev/null || true
+  done
+  echo "Traffic sent to http://${LB_IP}/weatherforecast"
+else
+  echo "LoadBalancer IP not ready"
+fi
+
+echo "== 5) Key Collector logs (last 10m) =="
+kubectl logs -n "$NS_OBS" -l app.kubernetes.io/instance=otel-agent --since=10m | egrep -i "forbidden|error|failed|otlp|gateway" || true
+kubectl logs -n "$NS_OBS" -l app.kubernetes.io/instance=otel-gateway --since=10m | egrep -i "error|failed|azuremonitor|export|401|403|404|429|5[0-9][0-9]" || true
+```
+
 ## Collector Architecture (Production)
 
 ```mermaid

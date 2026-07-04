@@ -173,6 +173,90 @@ metadata:
 - 相同的 agent/gateway 架构同样适用于 Python 负载；差异仅在 Instrumentation CRD 与应用注解。
 - 对 Python 来说，业务日志仍需应用主动输出；自动注入可开启 OTLP 日志导出，但不会自动产生日志内容。
 
+## 排查步骤（访问应用后 AI 无数据）
+
+1. 检查核心组件状态：`observability` 下 agent/gateway Pod 必须全部 `Running`。
+2. 检查 OTLP 入口服务：`otel-agent-opentelemetry-collector` 必须存在且有 Endpoints。
+3. 检查自动注入：应用 Pod 注解应为 `observability/dotnet-auto-prod`，并存在 `opentelemetry-auto-instrumentation-dotnet` initContainer。
+4. 检查 Instrumentation：`dotnet-auto-prod` 的 endpoint/sampler 配置正确，且 sampler 与预期一致。
+5. 发送测试流量：对业务接口连续压测 50-200 次，避免低采样率下偶发“全空”。
+6. 检查 Collector 自监控：查看 agent/gateway 的 exporter queue 与 error 日志。
+7. 验证 App Insights：先用无过滤 KQL 看近 30-60 分钟总量，再按 `cloud_RoleName` 或 `service.name` 过滤。
+
+### 快速排查脚本（PowerShell）
+
+```powershell
+$nsObs = "observability"
+$nsApp = "apps-prod"
+$app = "otelapidemo"
+$svc = "otel-agent-opentelemetry-collector"
+
+Write-Host "== 1) 组件状态 =="
+kubectl get pods -n $nsObs -o wide
+kubectl get pods -n $nsApp -l app=$app -o wide
+
+Write-Host "== 2) OTLP 入口服务 =="
+kubectl get svc -n $nsObs $svc -o wide
+kubectl get endpoints -n $nsObs $svc -o wide
+
+Write-Host "== 3) Instrumentation 与应用注解 =="
+kubectl get instrumentation -n $nsObs dotnet-auto-prod -o yaml
+kubectl get deploy -n $nsApp $app -o jsonpath='{.spec.template.metadata.annotations.instrumentation\.opentelemetry\.io/inject-dotnet}{"`n"}'
+
+Write-Host "== 4) 打测试流量 =="
+$lb = kubectl get svc -n $nsApp $app -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+if ([string]::IsNullOrEmpty($lb)) {
+  Write-Host "LoadBalancer IP not ready"
+} else {
+  1..100 | ForEach-Object {
+    try { Invoke-WebRequest -Uri ("http://{0}/weatherforecast" -f $lb) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
+  }
+  Write-Host "Traffic sent to http://$lb/weatherforecast"
+}
+
+Write-Host "== 5) Collector 关键日志（近10分钟） =="
+kubectl logs -n $nsObs -l app.kubernetes.io/instance=otel-agent --since=10m | Select-String -Pattern "forbidden|error|failed|otlp|gateway" 
+kubectl logs -n $nsObs -l app.kubernetes.io/instance=otel-gateway --since=10m | Select-String -Pattern "error|failed|azuremonitor|export|401|403|404|429|5[0-9][0-9]"
+```
+
+### 快速排查脚本（bash）
+
+```bash
+set -euo pipefail
+
+NS_OBS="observability"
+NS_APP="apps-prod"
+APP="otelapidemo"
+SVC="otel-agent-opentelemetry-collector"
+
+echo "== 1) 组件状态 =="
+kubectl get pods -n "$NS_OBS" -o wide
+kubectl get pods -n "$NS_APP" -l app="$APP" -o wide
+
+echo "== 2) OTLP 入口服务 =="
+kubectl get svc -n "$NS_OBS" "$SVC" -o wide
+kubectl get endpoints -n "$NS_OBS" "$SVC" -o wide
+
+echo "== 3) Instrumentation 与应用注解 =="
+kubectl get instrumentation -n "$NS_OBS" dotnet-auto-prod -o yaml
+kubectl get deploy -n "$NS_APP" "$APP" -o jsonpath='{.spec.template.metadata.annotations.instrumentation\.opentelemetry\.io/inject-dotnet}{"\n"}'
+
+echo "== 4) 打测试流量 =="
+LB_IP=$(kubectl get svc -n "$NS_APP" "$APP" -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+if [ -n "${LB_IP}" ]; then
+  for i in $(seq 1 100); do
+    curl -sS "http://${LB_IP}/weatherforecast" >/dev/null || true
+  done
+  echo "Traffic sent to http://${LB_IP}/weatherforecast"
+else
+  echo "LoadBalancer IP not ready"
+fi
+
+echo "== 5) Collector 关键日志（近10分钟） =="
+kubectl logs -n "$NS_OBS" -l app.kubernetes.io/instance=otel-agent --since=10m | egrep -i "forbidden|error|failed|otlp|gateway" || true
+kubectl logs -n "$NS_OBS" -l app.kubernetes.io/instance=otel-gateway --since=10m | egrep -i "error|failed|azuremonitor|export|401|403|404|429|5[0-9][0-9]" || true
+```
+
 ## Collector 架构（生产）
 
 ```mermaid
