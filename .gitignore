@@ -12,8 +12,20 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+.envrc
+.python-version
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+site/
+pip-wheel-metadata/
+*.egg-info/
+.ipynb_checkpoints/
 
 # Node / frontend
 node_modules/
@@ -28,6 +40,12 @@ coverage/
 **/.vs/
 *.user
 *.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
+TestResults/
+*.nupkg
+*.snupkg
 
 # Logs and temp
 *.log
