@@ -43,6 +43,8 @@ coverage/
 *.rsuser
 *.userosscache
 *.sln.docstates
+**/Properties/PublishProfiles/*.pubxml
+!**/Properties/PublishProfiles/*.pubxml.example
 TestResults/
 *.nupkg
 *.snupkg

@@ -13,9 +13,10 @@
 - otel-agent-rbac.prod.yaml: RBAC required by agent (k8sattributes permissions).
 - inst-crd-dotnet.prod.yaml: production .NET auto-instrumentation CRD.
 - inst-crd-python.prod.yaml: production Python auto-instrumentation CRD.
-- otelapidemo-dotnet.yaml: production .NET sample app manifest (production annotation preconfigured).
-- otelapidemo-python.yaml: production Python sample app manifest (production annotation preconfigured).
-- otelapidemo-ingress.prod.yaml: shared production Ingress for sample apps (.NET and Python behind one Ingress resource).
+- apps/otelapidemo-dotnet.yaml: production .NET sample app manifest (production annotation preconfigured).
+- apps/otelapidemo-python.yaml: production Python sample app manifest (production annotation preconfigured).
+- apps/kustomization.yaml: production sample app Kustomize entrypoint (replaces ACR image names).
+- apps/otelapidemo-ingress.prod.yaml: shared production Ingress for sample apps (.NET and Python behind one Ingress resource).
 - alerts-kql.prod.md: alerting and KQL guidance for production.
 - version-baseline.current.md: production version baseline and change ledger.
 - README.prod.md: Chinese production deployment guide.
@@ -28,7 +29,7 @@
 3. Required namespaces exist (`observability`, `apps-prod`) and application namespace is labeled with `otel-client=true`.
 4. App Insights connection string secret exists (`appinsights-conn`) in `observability`.
 5. RBAC allows you to read and update releases in `observability` namespace.
-6. NGINX Ingress Controller is installed in the cluster, and the `nginx` IngressClass exists. `otelapidemo-ingress.prod.yaml` depends on NGINX rewrite annotations to rewrite `/dotnet/*` and `/python/*` to the original backend paths. On AKS, set the ingress-nginx Service health probe for port 80 to TCP to avoid Azure Load Balancer HTTP `/` probes causing public access timeouts.
+6. NGINX Ingress Controller is installed in the cluster, and the `nginx` IngressClass exists. `apps/otelapidemo-ingress.prod.yaml` depends on NGINX rewrite annotations to rewrite `/dotnet/*` and `/python/*` to the original backend paths. On AKS, set the ingress-nginx Service health probe for port 80 to TCP to avoid Azure Load Balancer HTTP `/` probes causing public access timeouts.
 7. Before deployment, replace `<AKS_CLUSTER_NAME>` in `gateway-values.prod.yaml` and `agent-values.prod.yaml` with the actual AKS cluster name. This value standardizes the `k8s.cluster.name` resource attribute.
 
 ## Deploy Order
@@ -45,7 +46,7 @@
 10. Apply the shared Ingress to place .NET and Python behind one Ingress resource.
 11. Verify baseline status.
 
-## Commands
+## Commands (bash)
 
 ```bash
 # 1) Create application namespace and allow OTel client traffic
@@ -84,9 +85,10 @@ kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) Deploy otelapidemo sample apps (prod manifests, Services use ClusterIP)
-kubectl apply -n apps-prod -f ./prod/otelapidemo-dotnet.yaml
-kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
+# 9) Deploy otelapidemo sample apps (local ACR replacement; real ACR is not committed)
+# Set ACR_LOGIN_SERVER first, or create prod/apps/.env.local (example: ACR_LOGIN_SERVER=myacr.azurecr.io)
+export ACR_LOGIN_SERVER="myacr.azurecr.io"
+./prod/apps/deploy-apps.sh
 
 # 9.5) Install or update NGINX Ingress Controller (AKS uses TCP health probe)
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -96,7 +98,7 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
   -f ./prod/ingress-nginx-values.prod.yaml
 
 # 10) Apply shared Ingress (path-based routing: /dotnet and /python)
-kubectl apply -n apps-prod -f ./prod/otelapidemo-ingress.prod.yaml
+kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
 
 # 11) Verify
 kubectl get pods -n observability
@@ -147,9 +149,11 @@ kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) Deploy otelapidemo sample apps (prod manifests, Services use ClusterIP)
-kubectl apply -n apps-prod -f ./prod/otelapidemo-dotnet.yaml
-kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
+# 9) Deploy otelapidemo sample apps (local ACR replacement; real ACR is not committed)
+# Set ACR_LOGIN_SERVER first, or create prod/apps/.env.local (example: ACR_LOGIN_SERVER=<ACR_LOGIN_SERVER>)
+$env:ACR_LOGIN_SERVER = "<ACR_LOGIN_SERVER>"
+./prod/apps/deploy-apps.ps1
+# bash/zsh: ./prod/apps/deploy-apps.sh
 
 # 9.5) Install or update NGINX Ingress Controller (AKS uses TCP health probe)
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -159,7 +163,7 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx `
   -f ./prod/ingress-nginx-values.prod.yaml
 
 # 10) Apply shared Ingress (path-based routing: /dotnet and /python)
-kubectl apply -n apps-prod -f ./prod/otelapidemo-ingress.prod.yaml
+kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
 
 # 11) Verify
 kubectl get pods -n observability
@@ -177,7 +181,7 @@ kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metri
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
 # 13) (Optional) Only needed when migrating old dev manifests
-# New ./prod/otelapidemo-*.yaml already include production annotations
+# New ./prod/apps/otelapidemo-*.yaml already include production annotations
 ```
 
 ## Application Annotation Example
@@ -201,10 +205,11 @@ metadata:
 - Collectors standardize resource attributes by adding `deployment.environment.name=prod`, `cloud.provider=azure`, `cloud.platform=azure_aks`, `k8s.cluster.name=<AKS_CLUSTER_NAME>`, and by filling `service.namespace` from `k8s.namespace.name` when the application has not set it explicitly.
 - The sample applications explicitly set `service.namespace=apps-prod` and `service.version=latest`; production workloads should replace `service.version` with the real release or image version.
 - Applications send OTLP to `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317`; agent then forwards traffic to gateway.
-- Production sample applications do not expose `LoadBalancer` Services directly. Both `.NET` and Python Services use `ClusterIP`, and external access is routed through the shared Ingress in `otelapidemo-ingress.prod.yaml`.
+- Production sample applications do not expose `LoadBalancer` Services directly. Both `.NET` and Python Services use `ClusterIP`, and external access is routed through the shared Ingress in `apps/otelapidemo-ingress.prod.yaml`.
 - The shared Ingress uses path-based routing: `/dotnet/*` routes to the `.NET` Service, and `/python/*` routes to the Python Service. NGINX rewrite strips the prefix, so backend applications keep their original `/weatherforecast` route and do not need code changes.
 - The same agent/gateway architecture applies to Python workloads; only the Instrumentation CRD and application annotation differ.
-- Image fields in `otelapidemo-*.yaml` use the placeholder `<ACR_LOGIN_SERVER>`; replace it with your real ACR login server before deployment.
+- Image fields in `apps/otelapidemo-*.yaml` keep the `<ACR_LOGIN_SERVER>` placeholder; deployment scripts `prod/apps/deploy-apps.ps1` and `prod/apps/deploy-apps.sh` read the real ACR from the `ACR_LOGIN_SERVER` environment variable or ignored local file `prod/apps/.env.local`, then replace the placeholder only before applying to the cluster.
+- Real ACR, subscription, and publish profile values are not committed. For local publish settings, copy `otelapidemo/otelapidemo/Properties/PublishProfiles/acr.pubxml.example` to a local `.pubxml` file and fill in the values.
 - For Python, business logs still require application logging output; auto-instrumentation enables OTLP log export but does not create business log messages by itself.
 
 ## Troubleshooting Steps (No Data in AI After App Access)

@@ -13,9 +13,10 @@
 - otel-agent-rbac.prod.yaml：agent 所需 RBAC（k8sattributes 读取权限）。
 - inst-crd-dotnet.prod.yaml：生产 .NET 自动注入 Instrumentation CRD。
 - inst-crd-python.prod.yaml：生产 Python 自动注入 Instrumentation CRD。
-- otelapidemo-dotnet.yaml：生产 .NET 示例应用清单（已内置生产注解）。
-- otelapidemo-python.yaml：生产 Python 示例应用清单（已内置生产注解）。
-- otelapidemo-ingress.prod.yaml：生产示例应用共享 Ingress（.NET 与 Python 共用一个 Ingress 资源）。
+- apps/otelapidemo-dotnet.yaml：生产 .NET 示例应用清单（已内置生产注解）。
+- apps/otelapidemo-python.yaml：生产 Python 示例应用清单（已内置生产注解）。
+- apps/kustomization.yaml：生产示例应用 Kustomize 入口（替换 ACR 镜像地址）。
+- apps/otelapidemo-ingress.prod.yaml：生产示例应用共享 Ingress（.NET 与 Python 共用一个 Ingress 资源）。
 - alerts-kql.prod.md：生产告警与 KQL 建议。
 - version-baseline.current.md：生产版本基线台账与变更记录。
 - README.prod.md：当前中文生产部署说明。
@@ -28,7 +29,7 @@
 3. 必要命名空间已存在（`observability`、`apps-prod`），且应用命名空间已标记 `otel-client=true`。
 4. `observability` 命名空间中已存在 App Insights 连接串密钥（`appinsights-conn`）。
 5. RBAC 权限允许在 `observability` 命名空间读取并更新 release。
-6. 集群已安装 NGINX Ingress Controller，且存在 `nginx` IngressClass；`otelapidemo-ingress.prod.yaml` 依赖 NGINX rewrite 注解将 `/dotnet/*` 与 `/python/*` 改写到后端原始路径。在 AKS 上建议将 ingress-nginx Service 的 80 端口健康探针设置为 TCP，避免 Azure Load Balancer 使用 HTTP `/` 探针导致公网访问超时。
+6. 集群已安装 NGINX Ingress Controller，且存在 `nginx` IngressClass；`apps/otelapidemo-ingress.prod.yaml` 依赖 NGINX rewrite 注解将 `/dotnet/*` 与 `/python/*` 改写到后端原始路径。在 AKS 上建议将 ingress-nginx Service 的 80 端口健康探针设置为 TCP，避免 Azure Load Balancer 使用 HTTP `/` 探针导致公网访问超时。
 7. 部署前请将 `gateway-values.prod.yaml` 与 `agent-values.prod.yaml` 中的 `<AKS_CLUSTER_NAME>` 替换为实际 AKS 集群名称，用于标准化 `k8s.cluster.name` 资源属性。
 
 ## 部署顺序
@@ -45,7 +46,7 @@
 10. 应用共享 Ingress，将 .NET 与 Python 放在同一个 Ingress 资源后。
 11. 验证基础状态。
 
-## 命令
+## 命令（bash）
 
 ```bash
 # 1) 创建应用命名空间并放通 OTel 客户端流量
@@ -84,9 +85,10 @@ kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) 部署 otelapidemo 示例应用（prod 清单，Service 使用 ClusterIP）
-kubectl apply -n apps-prod -f ./prod/otelapidemo-dotnet.yaml
-kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
+# 9) 部署 otelapidemo 示例应用（本地替换 ACR 镜像地址，不提交真实 ACR）
+# 先设置 ACR_LOGIN_SERVER，或创建 prod/apps/.env.local（示例：ACR_LOGIN_SERVER=myacr.azurecr.io）
+export ACR_LOGIN_SERVER="myacr.azurecr.io"
+./prod/apps/deploy-apps.sh
 
 # 9.5) 安装或更新 NGINX Ingress Controller（AKS 使用 TCP 健康探针）
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -96,7 +98,7 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
   -f ./prod/ingress-nginx-values.prod.yaml
 
 # 10) 应用共享 Ingress（基于路径转发：/dotnet 与 /python）
-kubectl apply -n apps-prod -f ./prod/otelapidemo-ingress.prod.yaml
+kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
 
 # 11) 验证
 kubectl get pods -n observability
@@ -147,9 +149,11 @@ kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) 部署 otelapidemo 示例应用（prod 清单，Service 使用 ClusterIP）
-kubectl apply -n apps-prod -f ./prod/otelapidemo-dotnet.yaml
-kubectl apply -n apps-prod -f ./prod/otelapidemo-python.yaml
+# 9) 部署 otelapidemo 示例应用（本地替换 ACR 镜像地址，不提交真实 ACR）
+# 先设置 ACR_LOGIN_SERVER，或创建 prod/apps/.env.local（示例：ACR_LOGIN_SERVER=<ACR_LOGIN_SERVER>）
+$env:ACR_LOGIN_SERVER = "<ACR_LOGIN_SERVER>"
+./prod/apps/deploy-apps.ps1
+# bash/zsh 可使用：./prod/apps/deploy-apps.sh
 
 # 9.5) 安装或更新 NGINX Ingress Controller（AKS 使用 TCP 健康探针）
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -159,7 +163,7 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx `
   -f ./prod/ingress-nginx-values.prod.yaml
 
 # 10) 应用共享 Ingress（基于路径转发：/dotnet 与 /python）
-kubectl apply -n apps-prod -f ./prod/otelapidemo-ingress.prod.yaml
+kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
 
 # 11) 验证
 kubectl get pods -n observability
@@ -177,7 +181,7 @@ kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metri
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
 # 13) （可选）如你是从旧版 dev 清单迁移，才需要手工 patch 注解并重启
-# 新的 ./prod/otelapidemo-*.yaml 已内置生产注解，无需执行该步骤
+# 新的 ./prod/apps/otelapidemo-*.yaml 已内置生产注解，无需执行该步骤
 ```
 
 ## 应用注解示例
@@ -201,10 +205,11 @@ metadata:
 - Collector 会统一补充资源属性：`deployment.environment.name=prod`、`cloud.provider=azure`、`cloud.platform=azure_aks`、`k8s.cluster.name=<AKS_CLUSTER_NAME>`，并在未显式设置时从 `k8s.namespace.name` 补充 `service.namespace`。
 - 示例应用会显式设置 `service.namespace=apps-prod` 与 `service.version=latest`；生产应用建议将 `service.version` 替换为真实发布版本或镜像版本。
 - 应用通过服务 DNS `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317` 上报到 agent，再由 agent 转发至 gateway。
-- 生产示例应用不直接暴露 `LoadBalancer` Service；`.NET` 与 Python Service 均为 `ClusterIP`，外部访问统一通过 `otelapidemo-ingress.prod.yaml` 中的共享 Ingress。
+- 生产示例应用不直接暴露 `LoadBalancer` Service；`.NET` 与 Python Service 均为 `ClusterIP`，外部访问统一通过 `apps/otelapidemo-ingress.prod.yaml` 中的共享 Ingress。
 - 共享 Ingress 基于路径转发：`/dotnet/*` 转发到 `.NET` Service，`/python/*` 转发到 Python Service。NGINX rewrite 会去掉前缀，后端应用仍使用原始路径 `/weatherforecast`，无需修改应用代码。
 - 相同的 agent/gateway 架构同样适用于 Python 负载；差异仅在 Instrumentation CRD 与应用注解。
-- `otelapidemo-*.yaml` 中的镜像地址使用占位符 `<ACR_LOGIN_SERVER>`；部署前请替换为你的实际 ACR 登录地址。
+- `apps/otelapidemo-*.yaml` 中的镜像地址保留占位符 `<ACR_LOGIN_SERVER>`；部署脚本 `prod/apps/deploy-apps.ps1` 与 `prod/apps/deploy-apps.sh` 会从环境变量 `ACR_LOGIN_SERVER` 或本地忽略文件 `prod/apps/.env.local` 读取真实 ACR，并只在应用到集群前替换。
+- 真实 ACR、订阅与发布配置不提交到仓库；如需本地发布配置，可从 `otelapidemo/otelapidemo/Properties/PublishProfiles/acr.pubxml.example` 复制为本地 `.pubxml` 文件后填写。
 - 对 Python 来说，业务日志仍需应用主动输出；自动注入可开启 OTLP 日志导出，但不会自动产生日志内容。
 
 ## 排查步骤（访问应用后 AI 无数据）

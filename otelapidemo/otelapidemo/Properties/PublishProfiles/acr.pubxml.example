@@ -1,14 +1,13 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<!-- https://go.microsoft.com/fwlink/?LinkID=208121. -->
+<?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
     <WebPublishMethod>Custom</WebPublishMethod>
     <DockerPublish>true</DockerPublish>
-    <ResourceId>/subscriptions/899eaa20-616d-49f3-a37c-710fc197cd8a/resourceGroups/aksmctest/providers/Microsoft.ContainerRegistry/registries/qiqiacr</ResourceId>
-    <ResourceName>qiqiacr</ResourceName>
-    <ResourceGroup>aksmctest</ResourceGroup>
-    <Subscription>ME-MngEnvMCAP939476-robertdu-1</Subscription>
-    <RegistryUrl>https://qiqiacr.azurecr.io</RegistryUrl>
+    <ResourceId>/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RESOURCE_GROUP>/providers/Microsoft.ContainerRegistry/registries/<ACR_NAME></ResourceId>
+    <ResourceName><ACR_NAME></ResourceName>
+    <ResourceGroup><RESOURCE_GROUP></ResourceGroup>
+    <Subscription><SUBSCRIPTION_NAME></Subscription>
+    <RegistryUrl>https://<ACR_LOGIN_SERVER></RegistryUrl>
     <UserName />
     <PublishImageTag>latest</PublishImageTag>
     <PublishProvider>ContainerRegistry</PublishProvider>

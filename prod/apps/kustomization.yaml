@@ -1,0 +1,3 @@
+resources:
+  - otelapidemo-dotnet.yaml
+  - otelapidemo-python.yaml

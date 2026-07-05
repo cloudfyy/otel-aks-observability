@@ -36,4 +36,4 @@ docker run --rm -p 8000:8000 <ACR_LOGIN_SERVER>/otelapipy:latest
 - `deploy/otelapi-py.dev.yaml`: uses `observability/python-auto` annotation.
 - `deploy/otelapi-py.prod.yaml`: uses `observability/python-auto-prod` annotation.
 
-Both manifests use `<ACR_LOGIN_SERVER>` as image placeholder. Replace it before deployment.
+Both manifests use `<ACR_LOGIN_SERVER>` as image placeholder. Inject the real ACR only during local deployment, and do not commit it back into manifests.

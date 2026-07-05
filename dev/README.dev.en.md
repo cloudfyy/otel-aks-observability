@@ -112,6 +112,6 @@ metadata:
 - Current dev values include debug and azuremonitor exporters for troubleshooting.
 - If logs are not visible in Azure Monitor, first verify app-side log generation and collector sent/failed counters.
 - `current-values.yaml` and `myvalues.yaml` are kept as historical/alternate values and are not referenced by default commands.
-- Image fields in `otelapidemo-*.yaml` use the placeholder `<ACR_LOGIN_SERVER>`; replace it with your real ACR login server before deployment.
+- Image fields in `otelapidemo-*.yaml` use the `<ACR_LOGIN_SERVER>` placeholder; inject the real ACR through local temporary replacement or environment variables during deployment, and do not write it back into committed manifests.
 - `otelapidemo-python.yaml` is currently an example template only and has not completed full validation; validate in an isolated environment before enabling.
 - For better CRD reuse, keep service-specific OTEL_SERVICE_NAME in application Deployment, not in shared Instrumentation CRD.

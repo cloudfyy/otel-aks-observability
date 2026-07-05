@@ -22,7 +22,7 @@ Main capabilities:
   - Reference: [dev/README.dev.en.md](dev/README.dev.en.md)
 - [prod/](prod/)
   - Production baseline configuration (agent + gateway)
-  - Includes NetworkPolicy, cert-manager certificates, production values, alerts, and version ledger
+  - Includes NetworkPolicy, cert-manager certificates, production values, sample app deployment scripts, alerts, and version ledger
   - Reference: [prod/README.prod.en.md](prod/README.prod.en.md)
 - [otelapipy/](otelapipy/)
   - Python Web API sample project (aligned with .NET weatherforecast behavior)
@@ -48,13 +48,17 @@ Main capabilities:
 - Prod ingress-nginx values: [prod/ingress-nginx-values.prod.yaml](prod/ingress-nginx-values.prod.yaml)
 - Prod agent OTLP entry Service: [prod/otel-agent-service.prod.yaml](prod/otel-agent-service.prod.yaml)
 - Prod agent RBAC (k8sattributes permissions): [prod/otel-agent-rbac.prod.yaml](prod/otel-agent-rbac.prod.yaml)
-- Prod .NET sample app manifest: [prod/otelapidemo-dotnet.yaml](prod/otelapidemo-dotnet.yaml)
-- Prod Python sample app manifest: [prod/otelapidemo-python.yaml](prod/otelapidemo-python.yaml)
-- Shared production Ingress for sample apps: [prod/otelapidemo-ingress.prod.yaml](prod/otelapidemo-ingress.prod.yaml)
+- Prod .NET sample app manifest: [prod/apps/otelapidemo-dotnet.yaml](prod/apps/otelapidemo-dotnet.yaml)
+- Prod Python sample app manifest: [prod/apps/otelapidemo-python.yaml](prod/apps/otelapidemo-python.yaml)
+- Prod sample app Kustomize entrypoint: [prod/apps/kustomization.yaml](prod/apps/kustomization.yaml)
+- Prod sample app deployment script (PowerShell): [prod/apps/deploy-apps.ps1](prod/apps/deploy-apps.ps1)
+- Prod sample app deployment script (bash): [prod/apps/deploy-apps.sh](prod/apps/deploy-apps.sh)
+- Prod sample app local ACR config template: [prod/apps/.env.example](prod/apps/.env.example)
+- Shared production Ingress for sample apps: [prod/apps/otelapidemo-ingress.prod.yaml](prod/apps/otelapidemo-ingress.prod.yaml)
 - Python API source entry: [otelapipy/app/main.py](otelapipy/app/main.py)
 - Python API container build file: [otelapipy/Dockerfile](otelapipy/Dockerfile)
 - Python API dev deployment manifest: [dev/otelapidemo-python.yaml](dev/otelapidemo-python.yaml)
-- Python API prod deployment manifest: [prod/otelapidemo-python.yaml](prod/otelapidemo-python.yaml)
+- Python API prod deployment manifest: [prod/apps/otelapidemo-python.yaml](prod/apps/otelapidemo-python.yaml)
 - Prod network policy: [prod/networkpolicy.prod.yaml](prod/networkpolicy.prod.yaml)
 - Prod certificate config: [prod/collector-tls.prod.yaml](prod/collector-tls.prod.yaml)
 - Prod alert query guidance: [prod/alerts-kql.prod.md](prod/alerts-kql.prod.md)
@@ -64,5 +68,6 @@ Main capabilities:
 
 - Dev configuration is optimized for observability and troubleshooting, and may include additional debug settings.
 - Prod configuration is optimized for stability and security, with least privilege, retry/queue controls, certificates, and network isolation.
+- Prod sample app manifests keep the `<ACR_LOGIN_SERVER>` placeholder; the real ACR is passed to deployment scripts through an ignored local file or environment variable and is not committed.
 - The production guide includes troubleshooting steps, PowerShell/bash scripts, and final App Insights KQL verification (wait 3-10 minutes for ingestion).
 - Pin image and chart versions; avoid using latest.

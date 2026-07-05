@@ -22,7 +22,7 @@
   - 参考文档：[dev/README.dev.md](dev/README.dev.md)
 - [prod/](prod/)
   - 生产基线配置（agent + gateway）
-  - 包含 NetworkPolicy、cert-manager 证书、生产 values、告警与版本台账
+  - 包含 NetworkPolicy、cert-manager 证书、生产 values、示例应用部署脚本、告警与版本台账
   - 参考文档：[prod/README.prod.md](prod/README.prod.md)
 - [otelapipy/](otelapipy/)
   - Python Web API 示例工程（功能对齐 .NET weatherforecast）
@@ -48,13 +48,17 @@
 - 生产 ingress-nginx values：[prod/ingress-nginx-values.prod.yaml](prod/ingress-nginx-values.prod.yaml)
 - 生产 agent OTLP 入口 Service：[prod/otel-agent-service.prod.yaml](prod/otel-agent-service.prod.yaml)
 - 生产 agent RBAC（k8sattributes 权限）：[prod/otel-agent-rbac.prod.yaml](prod/otel-agent-rbac.prod.yaml)
-- 生产 .NET 示例应用清单：[prod/otelapidemo-dotnet.yaml](prod/otelapidemo-dotnet.yaml)
-- 生产 Python 示例应用清单：[prod/otelapidemo-python.yaml](prod/otelapidemo-python.yaml)
-- 生产示例应用共享 Ingress：[prod/otelapidemo-ingress.prod.yaml](prod/otelapidemo-ingress.prod.yaml)
+- 生产 .NET 示例应用清单：[prod/apps/otelapidemo-dotnet.yaml](prod/apps/otelapidemo-dotnet.yaml)
+- 生产 Python 示例应用清单：[prod/apps/otelapidemo-python.yaml](prod/apps/otelapidemo-python.yaml)
+- 生产示例应用 Kustomize 入口：[prod/apps/kustomization.yaml](prod/apps/kustomization.yaml)
+- 生产示例应用部署脚本（PowerShell）：[prod/apps/deploy-apps.ps1](prod/apps/deploy-apps.ps1)
+- 生产示例应用部署脚本（bash）：[prod/apps/deploy-apps.sh](prod/apps/deploy-apps.sh)
+- 生产示例应用本地 ACR 配置模板：[prod/apps/.env.example](prod/apps/.env.example)
+- 生产示例应用共享 Ingress：[prod/apps/otelapidemo-ingress.prod.yaml](prod/apps/otelapidemo-ingress.prod.yaml)
 - Python API 源码入口：[otelapipy/app/main.py](otelapipy/app/main.py)
 - Python API 容器构建文件：[otelapipy/Dockerfile](otelapipy/Dockerfile)
 - Python API 开发部署清单：[dev/otelapidemo-python.yaml](dev/otelapidemo-python.yaml)
-- Python API 生产部署清单：[prod/otelapidemo-python.yaml](prod/otelapidemo-python.yaml)
+- Python API 生产部署清单：[prod/apps/otelapidemo-python.yaml](prod/apps/otelapidemo-python.yaml)
 - 生产网络策略：[prod/networkpolicy.prod.yaml](prod/networkpolicy.prod.yaml)
 - 生产证书配置：[prod/collector-tls.prod.yaml](prod/collector-tls.prod.yaml)
 - 生产告警查询建议：[prod/alerts-kql.prod.md](prod/alerts-kql.prod.md)
@@ -64,5 +68,6 @@
 
 - dev 配置偏向可观测与排障，通常会保留更多调试项
 - prod 配置偏向稳定性与安全性，强调最小权限、重试队列、证书与网络隔离
+- prod 示例应用清单保留 `<ACR_LOGIN_SERVER>` 占位符；真实 ACR 通过本地忽略文件或环境变量传给部署脚本，不提交到远端
 - prod 文档内已包含“排查步骤 + PowerShell/bash 脚本 + App Insights 最终核验 KQL（建议等待 3-10 分钟）”
 - 建议固定镜像与 chart 版本，避免使用 latest
