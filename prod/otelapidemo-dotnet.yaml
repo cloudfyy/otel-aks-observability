@@ -32,6 +32,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.labels['app']
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: service.namespace=apps-prod,service.version=latest
           resources:
             requests:
               cpu: 100m

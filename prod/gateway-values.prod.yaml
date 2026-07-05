@@ -1,4 +1,4 @@
-# config-version: v1.0.1
+# config-version: v1.0.2
 # config-updated: 2026-07-05
 mode: deployment
 replicaCount: 3
@@ -65,6 +65,8 @@ extraEnvs:
       secretKeyRef:
         name: appinsights-conn
         key: connection_string
+  - name: AKS_CLUSTER_NAME
+    value: "<AKS_CLUSTER_NAME>"
 
 extraVolumes:
   - name: otel-gateway-tls
@@ -106,6 +108,23 @@ config:
       check_interval: 1s
       limit_percentage: 75
       spike_limit_percentage: 15
+    resource/standardize:
+      attributes:
+        - key: deployment.environment.name
+          value: prod
+          action: upsert
+        - key: cloud.provider
+          value: azure
+          action: upsert
+        - key: cloud.platform
+          value: azure_aks
+          action: upsert
+        - key: k8s.cluster.name
+          value: ${env:AKS_CLUSTER_NAME}
+          action: upsert
+        - key: service.namespace
+          from_attribute: k8s.namespace.name
+          action: insert
     batch:
       timeout: 5s
       send_batch_size: 1024
@@ -129,13 +148,13 @@ config:
     pipelines:
       traces:
         receivers: [otlp]
-        processors: [memory_limiter, batch]
+        processors: [memory_limiter, resource/standardize, batch]
         exporters: [azuremonitor]
       metrics:
         receivers: [otlp, prometheus]
-        processors: [memory_limiter, batch]
+        processors: [memory_limiter, resource/standardize, batch]
         exporters: [azuremonitor]
       logs:
         receivers: [otlp]
-        processors: [memory_limiter, batch]
+        processors: [memory_limiter, resource/standardize, batch]
         exporters: [azuremonitor]

@@ -4,8 +4,8 @@ metadata:
   name: dotnet-auto-prod
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.1"
-    otel.config/updated: "2026-07-03"
+    otel.config/version: "v1.0.2"
+    otel.config/updated: "2026-07-05"
 spec:
   exporter:
     endpoint: http://otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317
@@ -25,5 +25,3 @@ spec:
         value: otlp
       - name: OTEL_DOTNET_AUTO_LOGS_ENABLED
         value: "true"
-      - name: OTEL_RESOURCE_ATTRIBUTES
-        value: deployment.environment.name=prod

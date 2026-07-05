@@ -29,6 +29,7 @@
 4. `observability` 命名空间中已存在 App Insights 连接串密钥（`appinsights-conn`）。
 5. RBAC 权限允许在 `observability` 命名空间读取并更新 release。
 6. 集群已安装 NGINX Ingress Controller，且存在 `nginx` IngressClass；`otelapidemo-ingress.prod.yaml` 依赖 NGINX rewrite 注解将 `/dotnet/*` 与 `/python/*` 改写到后端原始路径。在 AKS 上建议将 ingress-nginx Service 的 80 端口健康探针设置为 TCP，避免 Azure Load Balancer 使用 HTTP `/` 探针导致公网访问超时。
+7. 部署前请将 `gateway-values.prod.yaml` 与 `agent-values.prod.yaml` 中的 `<AKS_CLUSTER_NAME>` 替换为实际 AKS 集群名称，用于标准化 `k8s.cluster.name` 资源属性。
 
 ## 部署顺序
 
@@ -197,6 +198,8 @@ metadata:
 
 - 当前生产基线已关闭 debug exporter，仅保留 azuremonitor。
 - 采样率设置为 10%（`0.1`），用于生产成本控制。
+- Collector 会统一补充资源属性：`deployment.environment.name=prod`、`cloud.provider=azure`、`cloud.platform=azure_aks`、`k8s.cluster.name=<AKS_CLUSTER_NAME>`，并在未显式设置时从 `k8s.namespace.name` 补充 `service.namespace`。
+- 示例应用会显式设置 `service.namespace=apps-prod` 与 `service.version=latest`；生产应用建议将 `service.version` 替换为真实发布版本或镜像版本。
 - 应用通过服务 DNS `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317` 上报到 agent，再由 agent 转发至 gateway。
 - 生产示例应用不直接暴露 `LoadBalancer` Service；`.NET` 与 Python Service 均为 `ClusterIP`，外部访问统一通过 `otelapidemo-ingress.prod.yaml` 中的共享 Ingress。
 - 共享 Ingress 基于路径转发：`/dotnet/*` 转发到 `.NET` Service，`/python/*` 转发到 Python Service。NGINX rewrite 会去掉前缀，后端应用仍使用原始路径 `/weatherforecast`，无需修改应用代码。

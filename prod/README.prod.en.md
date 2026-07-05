@@ -29,6 +29,7 @@
 4. App Insights connection string secret exists (`appinsights-conn`) in `observability`.
 5. RBAC allows you to read and update releases in `observability` namespace.
 6. NGINX Ingress Controller is installed in the cluster, and the `nginx` IngressClass exists. `otelapidemo-ingress.prod.yaml` depends on NGINX rewrite annotations to rewrite `/dotnet/*` and `/python/*` to the original backend paths. On AKS, set the ingress-nginx Service health probe for port 80 to TCP to avoid Azure Load Balancer HTTP `/` probes causing public access timeouts.
+7. Before deployment, replace `<AKS_CLUSTER_NAME>` in `gateway-values.prod.yaml` and `agent-values.prod.yaml` with the actual AKS cluster name. This value standardizes the `k8s.cluster.name` resource attribute.
 
 ## Deploy Order
 
@@ -197,6 +198,8 @@ metadata:
 
 - This baseline disables debug exporter and keeps azuremonitor only.
 - Sampling is set to 10% (`0.1`) for production cost control.
+- Collectors standardize resource attributes by adding `deployment.environment.name=prod`, `cloud.provider=azure`, `cloud.platform=azure_aks`, `k8s.cluster.name=<AKS_CLUSTER_NAME>`, and by filling `service.namespace` from `k8s.namespace.name` when the application has not set it explicitly.
+- The sample applications explicitly set `service.namespace=apps-prod` and `service.version=latest`; production workloads should replace `service.version` with the real release or image version.
 - Applications send OTLP to `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317`; agent then forwards traffic to gateway.
 - Production sample applications do not expose `LoadBalancer` Services directly. Both `.NET` and Python Services use `ClusterIP`, and external access is routed through the shared Ingress in `otelapidemo-ingress.prod.yaml`.
 - The shared Ingress uses path-based routing: `/dotnet/*` routes to the `.NET` Service, and `/python/*` routes to the Python Service. NGINX rewrite strips the prefix, so backend applications keep their original `/weatherforecast` route and do not need code changes.

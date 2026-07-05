@@ -12,8 +12,8 @@ Update this file before and after each upgrade test.
 
 ## Config Version Ledger
 
-- Config version: `v1.0.0`
-- Config updated date: `2026-07-03`
+- Config version: `v1.0.2`
+- Config updated date: `2026-07-05`
 - Version marker format:
 	- Helm values files: top-of-file comments `# config-version` and `# config-updated`
 	- Kubernetes manifests: `metadata.annotations` with `otel.config/version` and `otel.config/updated`

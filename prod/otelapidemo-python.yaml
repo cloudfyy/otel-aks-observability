@@ -28,6 +28,8 @@ spec:
               value: "1"
             - name: OTEL_SERVICE_NAME
               value: otelapidemo-python
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: service.namespace=apps-prod,service.version=latest
           resources:
             requests:
               cpu: 100m
