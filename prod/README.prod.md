@@ -220,6 +220,14 @@ metadata:
 - 真实 ACR、订阅与发布配置不提交到仓库；如需本地发布配置，可从 `otelapidemo/otelapidemo/Properties/PublishProfiles/acr.pubxml.example` 复制为本地 `.pubxml` 文件后填写。
 - 对 Python 来说，业务日志仍需应用主动输出；自动注入可开启 OTLP 日志导出，但不会自动产生日志内容。
 
+## 方案 B 关键实现细节
+
+- `load_balancing/gateway` 是 OpenTelemetry Collector Contrib 内置 exporter；`load_balancing` 是 exporter 类型，`gateway` 是本配置中的实例名。
+- traces pipeline 通过 `routing_key: traceID` 指定按 OTLP span 原生 TraceID 路由。TraceID 不是 resource attribute，也不需要应用额外注入；exporter 会对 span 的 TraceID 做一致性哈希，并把同一条 trace 的 span 发到同一个 gateway Pod。
+- `resolver.dns.hostname` 指向 `otel-gateway-opentelemetry-collector-headless.observability.svc.cluster.local`。该 Service 使用 `clusterIP: None`，DNS 返回 gateway Pod endpoint 列表，而不是普通 ClusterIP VIP。
+- agent trace 路径会直接连接 gateway Pod IP。由于 gateway 服务端证书签发给普通 gateway Service DNS，而不是 Pod IP，TLS 配置必须保留 `server_name_override: otel-gateway-opentelemetry-collector.observability.svc.cluster.local`，否则可能出现证书名称不匹配。
+- 当前 Collector `0.154.0` 的 `load_balancing` exporter 里，`protocol` 子字段仍使用 `otlp`。不要在这里改成 `otlp_grpc`；`otlp_grpc/gateway` 只用于 metrics/logs 普通转发 exporter。
+
 ## 排查步骤（访问应用后 AI 无数据）
 
 1. 检查核心组件状态：`observability` 下 agent/gateway Pod 必须全部 `Running`。

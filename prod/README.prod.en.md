@@ -220,6 +220,14 @@ metadata:
 - Real ACR, subscription, and publish profile values are not committed. For local publish settings, copy `otelapidemo/otelapidemo/Properties/PublishProfiles/acr.pubxml.example` to a local `.pubxml` file and fill in the values.
 - For Python, business logs still require application logging output; auto-instrumentation enables OTLP log export but does not create business log messages by itself.
 
+## Option B Implementation Details
+
+- `load_balancing/gateway` is a built-in OpenTelemetry Collector Contrib exporter; `load_balancing` is the exporter type, and `gateway` is the local instance name in this configuration.
+- The traces pipeline sets `routing_key: traceID` to route by the native TraceID field on OTLP spans. TraceID is not a resource attribute and does not require application-side injection; the exporter consistently hashes each span's TraceID so spans from the same trace go to the same gateway Pod.
+- `resolver.dns.hostname` points to `otel-gateway-opentelemetry-collector-headless.observability.svc.cluster.local`. That Service uses `clusterIP: None`, so DNS returns gateway Pod endpoints instead of a regular ClusterIP VIP.
+- The agent trace path connects directly to gateway Pod IPs. Because the gateway server certificate is issued for the regular gateway Service DNS, not for Pod IPs, TLS must keep `server_name_override: otel-gateway-opentelemetry-collector.observability.svc.cluster.local`; otherwise certificate name verification can fail.
+- With Collector `0.154.0`, the `load_balancing` exporter's nested `protocol` key is still `otlp`. Do not change it to `otlp_grpc`; `otlp_grpc/gateway` is only used by the regular metrics/logs forwarding exporter.
+
 ## Troubleshooting Steps (No Data in AI After App Access)
 
 1. Check component health: all agent/gateway Pods in `observability` must be `Running`.
