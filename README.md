@@ -11,7 +11,7 @@
 - 采集链路：接收应用上报的 traces、metrics、logs（OTLP gRPC/HTTP）
 - 自动注入：通过 OpenTelemetry Operator + Instrumentation CRD 为应用注入 .NET / Python 探针
 - 导出目标：对接 Azure Monitor / Application Insights
-- 生产加固：提供 agent + gateway 分层架构、mTLS 证书、网络策略、容量与告警建议
+- 生产加固：提供 agent + gateway 分层架构、gateway tail sampling、traceID 路由、mTLS 证书、网络策略、容量与告警建议
 - 运维治理：提供版本台账、升级前检查、验证命令
 
 ## 目录结构
@@ -46,6 +46,7 @@
 - 生产 gateway values：[prod/gateway-values.prod.yaml](prod/gateway-values.prod.yaml)
 - 生产 agent values：[prod/agent-values.prod.yaml](prod/agent-values.prod.yaml)
 - 生产 ingress-nginx values：[prod/ingress-nginx-values.prod.yaml](prod/ingress-nginx-values.prod.yaml)
+- 生产 gateway headless Service（tail sampling traceID 路由）：[prod/otel-gateway-headless.prod.yaml](prod/otel-gateway-headless.prod.yaml)
 - 生产 agent OTLP 入口 Service：[prod/otel-agent-service.prod.yaml](prod/otel-agent-service.prod.yaml)
 - 生产 agent RBAC（k8sattributes 权限）：[prod/otel-agent-rbac.prod.yaml](prod/otel-agent-rbac.prod.yaml)
 - 生产 .NET 示例应用清单：[prod/apps/otelapidemo-dotnet.yaml](prod/apps/otelapidemo-dotnet.yaml)

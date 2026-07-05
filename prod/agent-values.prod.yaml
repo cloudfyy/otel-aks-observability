@@ -1,4 +1,4 @@
-# config-version: v1.0.2
+# config-version: v1.0.4
 # config-updated: 2026-07-05
 mode: daemonset
 
@@ -117,7 +117,32 @@ config:
       send_batch_max_size: 1024
 
   exporters:
-    otlp/gateway:
+    load_balancing/gateway:
+      routing_key: traceID
+      resolver:
+        dns:
+          hostname: otel-gateway-opentelemetry-collector-headless.observability.svc.cluster.local
+          port: "4317"
+          interval: 5s
+      protocol:
+        otlp:
+          tls:
+            insecure: false
+            ca_file: /etc/otel/certs/ca.crt
+            cert_file: /etc/otel/certs/tls.crt
+            key_file: /etc/otel/certs/tls.key
+            server_name_override: otel-gateway-opentelemetry-collector.observability.svc.cluster.local
+          timeout: 10s
+          retry_on_failure:
+            enabled: true
+            initial_interval: 1s
+            max_interval: 15s
+            max_elapsed_time: 120s
+          sending_queue:
+            enabled: true
+            num_consumers: 4
+            queue_size: 5000
+    otlp_grpc/gateway:
       endpoint: otel-gateway-opentelemetry-collector.observability.svc.cluster.local:4317
       tls:
         insecure: false
@@ -145,12 +170,12 @@ config:
       traces:
         receivers: [otlp]
         processors: [memory_limiter, k8s_attributes, resource/standardize, batch]
-        exporters: [otlp/gateway]
+        exporters: [load_balancing/gateway]
       metrics:
         receivers: [otlp, prometheus]
         processors: [memory_limiter, k8s_attributes, resource/standardize, batch]
-        exporters: [otlp/gateway]
+        exporters: [otlp_grpc/gateway]
       logs:
         receivers: [otlp]
         processors: [memory_limiter, k8s_attributes, resource/standardize, batch]
-        exporters: [otlp/gateway]
+        exporters: [otlp_grpc/gateway]

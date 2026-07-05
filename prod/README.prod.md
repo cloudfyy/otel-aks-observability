@@ -9,6 +9,7 @@
 - gateway-values.prod.yaml：gateway Collector Helm values（导出与扩展策略）。
 - agent-values.prod.yaml：agent Collector Helm values（节点侧接入与转发）。
 - ingress-nginx-values.prod.yaml：ingress-nginx Helm values（AKS Load Balancer TCP 健康探针）。
+- otel-gateway-headless.prod.yaml：gateway headless Service（agent 按 traceID 路由至 gateway Pod）。
 - otel-agent-service.prod.yaml：agent OTLP 稳定入口 Service（应用上报目标）。
 - otel-agent-rbac.prod.yaml：agent 所需 RBAC（k8sattributes 读取权限）。
 - inst-crd-dotnet.prod.yaml：生产 .NET 自动注入 Instrumentation CRD。
@@ -68,6 +69,9 @@ helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
   -f ./prod/gateway-values.prod.yaml
+
+# 4.5) 应用 Gateway headless Service（agent 按 traceID 路由到 gateway Pod）
+kubectl apply -f ./prod/otel-gateway-headless.prod.yaml
 
 # 5) 部署 Agent（release 名称：otel-agent）
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector \
@@ -132,6 +136,9 @@ helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
   -f ./prod/gateway-values.prod.yaml
+
+# 4.5) 应用 Gateway headless Service（agent 按 traceID 路由到 gateway Pod）
+kubectl apply -f ./prod/otel-gateway-headless.prod.yaml
 
 # 5) 部署 Agent（release 名称：otel-agent）
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector `
@@ -202,10 +209,10 @@ metadata:
 
 - 当前生产基线已关闭 debug exporter，仅保留 azuremonitor。
 - 生产 trace 使用 gateway tail sampling：应用侧 `always_on` 全量上报，gateway 保留错误 trace、超过 1000ms 的慢 trace，并对其余正常 trace 做 10% 概率采样。
-- 当前 tail sampling 采用方案 A：gateway 固定为单副本，以保证同一条 trace 的 span 在同一个 tail sampler 中完成决策；如需恢复多副本高可用，应先引入基于 trace ID 的负载均衡。
+- 当前 tail sampling 采用方案 B：gateway 保持多副本高可用，agent 的 traces pipeline 使用 `load_balancing/gateway` exporter 按 trace ID 路由到 headless Service 暴露的 gateway Pod，确保同一条 trace 的 span 进入同一个 tail sampler。
 - Collector 会统一补充资源属性：`deployment.environment.name=prod`、`cloud.provider=azure`、`cloud.platform=azure_aks`、`k8s.cluster.name=<AKS_CLUSTER_NAME>`，并在未显式设置时从 `k8s.namespace.name` 补充 `service.namespace`。
 - 示例应用会显式设置 `service.namespace=apps-prod` 与 `service.version=latest`；生产应用建议将 `service.version` 替换为真实发布版本或镜像版本。
-- 应用通过服务 DNS `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317` 上报到 agent，再由 agent 转发至 gateway。
+- 应用通过服务 DNS `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317/4318` 上报到 agent。agent 的 traces pipeline 通过 `load_balancing/gateway` 和 gateway headless Service 按 trace ID 路由；metrics/logs pipeline 通过 `otlp_grpc/gateway` 发送到普通 gateway ClusterIP Service。
 - 生产示例应用不直接暴露 `LoadBalancer` Service；`.NET` 与 Python Service 均为 `ClusterIP`，外部访问统一通过 `apps/otelapidemo-ingress.prod.yaml` 中的共享 Ingress。
 - 共享 Ingress 基于路径转发：`/dotnet/*` 转发到 `.NET` Service，`/python/*` 转发到 Python Service。NGINX rewrite 会去掉前缀，后端应用仍使用原始路径 `/weatherforecast`，无需修改应用代码。
 - 相同的 agent/gateway 架构同样适用于 Python 负载；差异仅在 Instrumentation CRD 与应用注解。
@@ -541,16 +548,17 @@ flowchart LR
     end
 
     subgraph Agent[OTel Agent Layer - DaemonSet]
-      AG1[Agent on Node 1\nreceivers: otlp\nprocessors: memory_limiter,k8sattributes,batch]
-      AG2[Agent on Node 2\nreceivers: otlp\nprocessors: memory_limiter,k8sattributes,batch]
-      AGN[Agent on Node N\nreceivers: otlp\nprocessors: memory_limiter,k8sattributes,batch]
+      AG1[Agent on Node 1\notlp receiver\nk8sattributes + resource standardize]
+      AG2[Agent on Node 2\notlp receiver\nk8sattributes + resource standardize]
+      AGN[Agent on Node N\notlp receiver\nk8sattributes + resource standardize]
     end
 
     subgraph Gateway[OTel Gateway Layer - Deployment]
-      GW1[Gateway Pod 1\nqueue+retry+batch]
-      GW2[Gateway Pod 2\nqueue+retry+batch]
-      GW3[Gateway Pod 3\nqueue+retry+batch]
-      SVC[(otel-gateway Service\nClusterIP)]
+      HSVC[(gateway headless Service\nDNS endpoints for Pods)]
+      SVC[(gateway ClusterIP Service\nmetrics/logs path)]
+      GW1[Gateway Pod 1\ntail_sampling + batch\nazuremonitor exporter]
+      GW2[Gateway Pod 2\ntail_sampling + batch\nazuremonitor exporter]
+      GW3[Gateway Pod 3\ntail_sampling + batch\nazuremonitor exporter]
     end
 
     HPA[HPA\nscale gateway replicas]
@@ -563,10 +571,17 @@ flowchart LR
   A2 --> AG2
   A3 --> AGN
 
-  AG1 --> SVC
-  AG2 --> SVC
-  AGN --> SVC
+  AG1 -- traces: load_balancing by traceID --> HSVC
+  AG2 -- traces: load_balancing by traceID --> HSVC
+  AGN -- traces: load_balancing by traceID --> HSVC
 
+  AG1 -- metrics/logs: otlp_grpc --> SVC
+  AG2 -- metrics/logs: otlp_grpc --> SVC
+  AGN -- metrics/logs: otlp_grpc --> SVC
+
+  HSVC -. resolves Pod endpoints .-> GW1
+  HSVC -. resolves Pod endpoints .-> GW2
+  HSVC -. resolves Pod endpoints .-> GW3
   SVC --> GW1
   SVC --> GW2
   SVC --> GW3

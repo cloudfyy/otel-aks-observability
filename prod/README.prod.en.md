@@ -9,6 +9,7 @@
 - gateway-values.prod.yaml: Helm values for gateway Collector (export and scaling behavior).
 - agent-values.prod.yaml: Helm values for agent Collector (node-side receive/forward).
 - ingress-nginx-values.prod.yaml: Helm values for ingress-nginx (AKS Load Balancer TCP health probe).
+- otel-gateway-headless.prod.yaml: gateway headless Service for agent trace ID routing to gateway Pods.
 - otel-agent-service.prod.yaml: stable OTLP Service endpoint for application traffic into agent.
 - otel-agent-rbac.prod.yaml: RBAC required by agent (k8sattributes permissions).
 - inst-crd-dotnet.prod.yaml: production .NET auto-instrumentation CRD.
@@ -68,6 +69,9 @@ helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
   -f ./prod/gateway-values.prod.yaml
+
+# 4.5) Apply Gateway headless Service (agent routes to gateway Pods by trace ID)
+kubectl apply -f ./prod/otel-gateway-headless.prod.yaml
 
 # 5) Agent (release name: otel-agent)
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector \
@@ -132,6 +136,9 @@ helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
   -f ./prod/gateway-values.prod.yaml
+
+# 4.5) Apply Gateway headless Service (agent routes to gateway Pods by trace ID)
+kubectl apply -f ./prod/otel-gateway-headless.prod.yaml
 
 # 5) Agent (release name: otel-agent)
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector `
@@ -202,10 +209,10 @@ metadata:
 
 - This baseline disables debug exporter and keeps azuremonitor only.
 - Production traces use gateway tail sampling: applications use `always_on` and send all spans, while gateway keeps error traces, traces slower than 1000ms, and applies 10% probabilistic sampling to the remaining normal traces.
-- Tail sampling currently uses option A: gateway is pinned to one replica so spans from the same trace are evaluated by the same tail sampler. To restore multi-replica high availability, add trace ID based load balancing first.
+- Tail sampling currently uses option B: gateway keeps multiple replicas for high availability, while the agent traces pipeline uses the `load_balancing/gateway` exporter to route by trace ID to gateway Pods exposed through a headless Service. This keeps all spans for one trace on the same tail sampler.
 - Collectors standardize resource attributes by adding `deployment.environment.name=prod`, `cloud.provider=azure`, `cloud.platform=azure_aks`, `k8s.cluster.name=<AKS_CLUSTER_NAME>`, and by filling `service.namespace` from `k8s.namespace.name` when the application has not set it explicitly.
 - The sample applications explicitly set `service.namespace=apps-prod` and `service.version=latest`; production workloads should replace `service.version` with the real release or image version.
-- Applications send OTLP to `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317`; agent then forwards traffic to gateway.
+- Applications send OTLP to `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317/4318`. The agent traces pipeline uses `load_balancing/gateway` plus the gateway headless Service to route by trace ID; metrics/logs pipelines use `otlp_grpc/gateway` through the regular gateway ClusterIP Service.
 - Production sample applications do not expose `LoadBalancer` Services directly. Both `.NET` and Python Services use `ClusterIP`, and external access is routed through the shared Ingress in `apps/otelapidemo-ingress.prod.yaml`.
 - The shared Ingress uses path-based routing: `/dotnet/*` routes to the `.NET` Service, and `/python/*` routes to the Python Service. NGINX rewrite strips the prefix, so backend applications keep their original `/weatherforecast` route and do not need code changes.
 - The same agent/gateway architecture applies to Python workloads; only the Instrumentation CRD and application annotation differ.
@@ -541,16 +548,17 @@ flowchart LR
     end
 
     subgraph Agent[OTel Agent Layer - DaemonSet]
-      AG1[Agent on Node 1\nreceivers: otlp\nprocessors: memory_limiter,k8sattributes,batch]
-      AG2[Agent on Node 2\nreceivers: otlp\nprocessors: memory_limiter,k8sattributes,batch]
-      AGN[Agent on Node N\nreceivers: otlp\nprocessors: memory_limiter,k8sattributes,batch]
+      AG1[Agent on Node 1\notlp receiver\nk8sattributes + resource standardize]
+      AG2[Agent on Node 2\notlp receiver\nk8sattributes + resource standardize]
+      AGN[Agent on Node N\notlp receiver\nk8sattributes + resource standardize]
     end
 
     subgraph Gateway[OTel Gateway Layer - Deployment]
-      GW1[Gateway Pod 1\nqueue+retry+batch]
-      GW2[Gateway Pod 2\nqueue+retry+batch]
-      GW3[Gateway Pod 3\nqueue+retry+batch]
-      SVC[(otel-gateway Service\nClusterIP)]
+      HSVC[(gateway headless Service\nDNS endpoints for Pods)]
+      SVC[(gateway ClusterIP Service\nmetrics/logs path)]
+      GW1[Gateway Pod 1\ntail_sampling + batch\nazuremonitor exporter]
+      GW2[Gateway Pod 2\ntail_sampling + batch\nazuremonitor exporter]
+      GW3[Gateway Pod 3\ntail_sampling + batch\nazuremonitor exporter]
     end
 
     HPA[HPA\nscale gateway replicas]
@@ -563,10 +571,17 @@ flowchart LR
   A2 --> AG2
   A3 --> AGN
 
-  AG1 --> SVC
-  AG2 --> SVC
-  AGN --> SVC
+  AG1 -- traces: load_balancing by traceID --> HSVC
+  AG2 -- traces: load_balancing by traceID --> HSVC
+  AGN -- traces: load_balancing by traceID --> HSVC
 
+  AG1 -- metrics/logs: otlp_grpc --> SVC
+  AG2 -- metrics/logs: otlp_grpc --> SVC
+  AGN -- metrics/logs: otlp_grpc --> SVC
+
+  HSVC -. resolves Pod endpoints .-> GW1
+  HSVC -. resolves Pod endpoints .-> GW2
+  HSVC -. resolves Pod endpoints .-> GW3
   SVC --> GW1
   SVC --> GW2
   SVC --> GW3

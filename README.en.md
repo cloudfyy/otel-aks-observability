@@ -11,7 +11,7 @@ Main capabilities:
 - Data pipeline: receives application traces, metrics, and logs through OTLP (gRPC/HTTP)
 - Auto-instrumentation: injects .NET/Python instrumentation with OpenTelemetry Operator and Instrumentation CRDs
 - Export target: sends telemetry to Azure Monitor / Application Insights
-- Production hardening: provides agent + gateway layered architecture, mTLS certificates, network policies, and scaling/alert guidance
+- Production hardening: provides agent + gateway layered architecture, gateway tail sampling, trace ID routing, mTLS certificates, network policies, and scaling/alert guidance
 - Operations governance: provides version ledger, upgrade pre-checks, and validation commands
 
 ## Directory Structure
@@ -46,6 +46,7 @@ Main capabilities:
 - Prod gateway values: [prod/gateway-values.prod.yaml](prod/gateway-values.prod.yaml)
 - Prod agent values: [prod/agent-values.prod.yaml](prod/agent-values.prod.yaml)
 - Prod ingress-nginx values: [prod/ingress-nginx-values.prod.yaml](prod/ingress-nginx-values.prod.yaml)
+- Prod gateway headless Service (tail sampling trace ID routing): [prod/otel-gateway-headless.prod.yaml](prod/otel-gateway-headless.prod.yaml)
 - Prod agent OTLP entry Service: [prod/otel-agent-service.prod.yaml](prod/otel-agent-service.prod.yaml)
 - Prod agent RBAC (k8sattributes permissions): [prod/otel-agent-rbac.prod.yaml](prod/otel-agent-rbac.prod.yaml)
 - Prod .NET sample app manifest: [prod/apps/otelapidemo-dotnet.yaml](prod/apps/otelapidemo-dotnet.yaml)

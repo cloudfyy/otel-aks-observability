@@ -9,11 +9,11 @@ Update this file before and after each upgrade test.
 - Agent collector image target: `otel/opentelemetry-collector-contrib:0.154.0`
 - Dotnet instrumentation CRD: `dotnet-auto-prod` (sampler `always_on`)
 - Python instrumentation CRD: `python-auto-prod` (sampler `always_on`)
-- Gateway trace sampling: tail sampling keeps errors and traces slower than 1000ms, then samples normal traces at 10%; gateway is pinned to one replica for option A.
+- Gateway trace sampling: tail sampling keeps errors and traces slower than 1000ms, then samples normal traces at 10%; option B keeps gateway multi-replica and uses agent trace ID load balancing through the gateway headless Service.
 
 ## Config Version Ledger
 
-- Config version: `v1.0.3`
+- Config version: `v1.0.4`
 - Config updated date: `2026-07-05`
 - Version marker format:
 	- Helm values files: top-of-file comments `# config-version` and `# config-updated`
@@ -23,6 +23,7 @@ Update this file before and after each upgrade test.
 
 - `./prod/gateway-values.prod.yaml`
 - `./prod/agent-values.prod.yaml`
+- `./prod/otel-gateway-headless.prod.yaml`
 - `./prod/otel-agent-service.prod.yaml`
 - `./prod/otel-agent-rbac.prod.yaml`
 - `./prod/inst-crd-dotnet.prod.yaml`
