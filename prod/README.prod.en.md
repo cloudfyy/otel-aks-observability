@@ -201,7 +201,8 @@ metadata:
 ## Notes
 
 - This baseline disables debug exporter and keeps azuremonitor only.
-- Sampling is set to 10% (`0.1`) for production cost control.
+- Production traces use gateway tail sampling: applications use `always_on` and send all spans, while gateway keeps error traces, traces slower than 1000ms, and applies 10% probabilistic sampling to the remaining normal traces.
+- Tail sampling currently uses option A: gateway is pinned to one replica so spans from the same trace are evaluated by the same tail sampler. To restore multi-replica high availability, add trace ID based load balancing first.
 - Collectors standardize resource attributes by adding `deployment.environment.name=prod`, `cloud.provider=azure`, `cloud.platform=azure_aks`, `k8s.cluster.name=<AKS_CLUSTER_NAME>`, and by filling `service.namespace` from `k8s.namespace.name` when the application has not set it explicitly.
 - The sample applications explicitly set `service.namespace=apps-prod` and `service.version=latest`; production workloads should replace `service.version` with the real release or image version.
 - Applications send OTLP to `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317`; agent then forwards traffic to gateway.
@@ -217,8 +218,8 @@ metadata:
 1. Check component health: all agent/gateway Pods in `observability` must be `Running`.
 2. Check OTLP entry service: `otel-agent-opentelemetry-collector` must exist and have endpoints.
 3. Check auto-injection: the .NET app Pod annotation should be `observability/dotnet-auto-prod`, and the `opentelemetry-auto-instrumentation-dotnet` initContainer must exist. The Python app Pod annotation should be `observability/python-auto-prod`, with Python auto-instrumentation initContainer/env injection present.
-4. Check Instrumentation CRDs: verify endpoint/sampler settings on both `dotnet-auto-prod` and `python-auto-prod`. Python should use OTLP HTTP/protobuf and port `4318`.
-5. Send test traffic: hit business endpoint 50-200 times to avoid false negatives under sampling.
+4. Check Instrumentation CRDs: verify endpoint/sampler settings on both `dotnet-auto-prod` and `python-auto-prod`, and confirm sampler is `always_on`. Python should use OTLP HTTP/protobuf and port `4318`.
+5. Send test traffic: hit business endpoint 50-200 times, then wait at least one tail sampling decision window (currently `decision_wait=10s`) before querying.
 6. Check Collector self-observability: inspect exporter queue and error logs on agent/gateway.
 7. Validate in App Insights: run broad KQL first, then narrow by `cloud_RoleName` or `service.name`.
 

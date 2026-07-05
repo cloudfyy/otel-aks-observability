@@ -4,7 +4,7 @@ metadata:
   name: python-auto-prod
   namespace: observability
   annotations:
-    otel.config/version: "v1.0.2"
+    otel.config/version: "v1.0.3"
     otel.config/updated: "2026-07-05"
 spec:
   exporter:
@@ -13,8 +13,7 @@ spec:
     - tracecontext
     - baggage
   sampler:
-    type: parentbased_traceidratio
-    argument: "0.1"
+    type: always_on
   python:
     env:
       - name: OTEL_EXPORTER_OTLP_PROTOCOL

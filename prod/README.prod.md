@@ -201,7 +201,8 @@ metadata:
 ## 说明
 
 - 当前生产基线已关闭 debug exporter，仅保留 azuremonitor。
-- 采样率设置为 10%（`0.1`），用于生产成本控制。
+- 生产 trace 使用 gateway tail sampling：应用侧 `always_on` 全量上报，gateway 保留错误 trace、超过 1000ms 的慢 trace，并对其余正常 trace 做 10% 概率采样。
+- 当前 tail sampling 采用方案 A：gateway 固定为单副本，以保证同一条 trace 的 span 在同一个 tail sampler 中完成决策；如需恢复多副本高可用，应先引入基于 trace ID 的负载均衡。
 - Collector 会统一补充资源属性：`deployment.environment.name=prod`、`cloud.provider=azure`、`cloud.platform=azure_aks`、`k8s.cluster.name=<AKS_CLUSTER_NAME>`，并在未显式设置时从 `k8s.namespace.name` 补充 `service.namespace`。
 - 示例应用会显式设置 `service.namespace=apps-prod` 与 `service.version=latest`；生产应用建议将 `service.version` 替换为真实发布版本或镜像版本。
 - 应用通过服务 DNS `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317` 上报到 agent，再由 agent 转发至 gateway。
@@ -217,8 +218,8 @@ metadata:
 1. 检查核心组件状态：`observability` 下 agent/gateway Pod 必须全部 `Running`。
 2. 检查 OTLP 入口服务：`otel-agent-opentelemetry-collector` 必须存在且有 Endpoints。
 3. 检查自动注入：.NET 应用 Pod 注解应为 `observability/dotnet-auto-prod`，并存在 `opentelemetry-auto-instrumentation-dotnet` initContainer；Python 应用 Pod 注解应为 `observability/python-auto-prod`，并存在 Python auto-instrumentation 注入相关的 initContainer/env。
-4. 检查 Instrumentation：`dotnet-auto-prod` 与 `python-auto-prod` 的 endpoint/sampler 配置正确，且 sampler 与预期一致。Python 应使用 OTLP HTTP/protobuf 和 `4318` 端口。
-5. 发送测试流量：对业务接口连续压测 50-200 次，避免低采样率下偶发“全空”。
+4. 检查 Instrumentation：`dotnet-auto-prod` 与 `python-auto-prod` 的 endpoint/sampler 配置正确，且 sampler 为 `always_on`。Python 应使用 OTLP HTTP/protobuf 和 `4318` 端口。
+5. 发送测试流量：对业务接口连续压测 50-200 次，并等待至少一个 tail sampling 决策窗口（当前 `decision_wait=10s`）后再查询。
 6. 检查 Collector 自监控：查看 agent/gateway 的 exporter queue 与 error 日志。
 7. 验证 App Insights：先用无过滤 KQL 看近 30-60 分钟总量，再按 `cloud_RoleName` 或 `service.name` 过滤。
 

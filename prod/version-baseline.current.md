@@ -7,12 +7,13 @@ Update this file before and after each upgrade test.
 - Helm chart version target: `0.162.0`
 - Gateway collector image target: `otel/opentelemetry-collector-contrib:0.154.0`
 - Agent collector image target: `otel/opentelemetry-collector-contrib:0.154.0`
-- Dotnet instrumentation CRD: `dotnet-auto-prod` (sampling `0.1`)
-- Python instrumentation CRD: `python-auto-prod` (sampling `0.1`)
+- Dotnet instrumentation CRD: `dotnet-auto-prod` (sampler `always_on`)
+- Python instrumentation CRD: `python-auto-prod` (sampler `always_on`)
+- Gateway trace sampling: tail sampling keeps errors and traces slower than 1000ms, then samples normal traces at 10%; gateway is pinned to one replica for option A.
 
 ## Config Version Ledger
 
-- Config version: `v1.0.2`
+- Config version: `v1.0.3`
 - Config updated date: `2026-07-05`
 - Version marker format:
 	- Helm values files: top-of-file comments `# config-version` and `# config-updated`

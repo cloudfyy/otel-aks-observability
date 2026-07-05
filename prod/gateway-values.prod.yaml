@@ -1,7 +1,7 @@
-# config-version: v1.0.2
+# config-version: v1.0.3
 # config-updated: 2026-07-05
 mode: deployment
-replicaCount: 3
+replicaCount: 1
 
 serviceAccount:
   create: true
@@ -46,15 +46,14 @@ resources:
     memory: 1Gi
 
 autoscaling:
-  enabled: true
-  minReplicas: 3
-  maxReplicas: 10
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 75
 
 podDisruptionBudget:
-  enabled: true
-  minAvailable: 2
+  enabled: false
 
 service:
   type: ClusterIP
@@ -125,6 +124,23 @@ config:
         - key: service.namespace
           from_attribute: k8s.namespace.name
           action: insert
+    tail_sampling:
+      decision_wait: 10s
+      num_traces: 50000
+      expected_new_traces_per_sec: 1000
+      policies:
+        - name: keep-errors
+          type: status_code
+          status_code:
+            status_codes: [ERROR]
+        - name: keep-slow-traces
+          type: latency
+          latency:
+            threshold_ms: 1000
+        - name: sample-normal-traces
+          type: probabilistic
+          probabilistic:
+            sampling_percentage: 10
     batch:
       timeout: 5s
       send_batch_size: 1024
@@ -148,7 +164,7 @@ config:
     pipelines:
       traces:
         receivers: [otlp]
-        processors: [memory_limiter, resource/standardize, batch]
+        processors: [memory_limiter, resource/standardize, tail_sampling, batch]
         exporters: [azuremonitor]
       metrics:
         receivers: [otlp, prometheus]
