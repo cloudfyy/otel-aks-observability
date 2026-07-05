@@ -63,6 +63,7 @@
 - 生产网络策略：[prod/networkpolicy.prod.yaml](prod/networkpolicy.prod.yaml)
 - 生产证书配置：[prod/collector-tls.prod.yaml](prod/collector-tls.prod.yaml)
 - 生产告警查询建议：[prod/alerts-kql.prod.md](prod/alerts-kql.prod.md)
+- App Insights 仪表盘建议：[prod/appinsights-dashboard.prod.md](prod/appinsights-dashboard.prod.md)
 - 生产版本台账：[prod/version-baseline.current.md](prod/version-baseline.current.md)
 
 ## 说明

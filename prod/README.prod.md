@@ -19,6 +19,8 @@
 - apps/kustomization.yaml：生产示例应用 Kustomize 入口（替换 ACR 镜像地址）。
 - apps/otelapidemo-ingress.prod.yaml：生产示例应用共享 Ingress（.NET 与 Python 共用一个 Ingress 资源）。
 - alerts-kql.prod.md：生产告警与 KQL 建议。
+- appinsights-dashboard.prod.md：Application Insights 仪表盘（程序运行 + OTel 常用指标）建议。
+- appinsights-dashboard.prod.en.md：Application Insights dashboard 英文说明。
 - version-baseline.current.md：生产版本基线台账与变更记录。
 - README.prod.md：当前中文生产部署说明。
 - README.prod.en.md：英文生产部署说明。

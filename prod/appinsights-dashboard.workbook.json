@@ -1,0 +1,310 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "4f7ce99f-c9fb-4d0d-8dd3-3de9e9e2d111",
+            "version": "KqlParameterItem/1.0",
+            "name": "selectedTab",
+            "type": 1,
+            "value": "runtime"
+          }
+        ],
+        "style": "above",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components"
+      },
+      "name": "parameters - selectedTab"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "# OTel Prod AppInsights Dashboard\n\n程序运行 + OTel 常用指标\n\n默认时间范围：最近 30 分钟"
+      },
+      "name": "text - title"
+    },
+    {
+      "type": 11,
+      "content": {
+        "version": "LinkItem/1.0",
+        "style": "tabs",
+        "links": [
+          {
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Application Runtime",
+            "subTarget": "runtime",
+            "style": "link"
+          },
+          {
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "Collector Pipeline",
+            "subTarget": "pipeline",
+            "style": "link"
+          },
+          {
+            "cellValue": "selectedTab",
+            "linkTarget": "parameter",
+            "linkLabel": "App OTel Metrics",
+            "subTarget": "appmetrics",
+            "style": "link"
+          }
+        ]
+      },
+      "name": "links - tabs"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Application Runtime"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "runtime"
+      },
+      "name": "text - runtime"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "requests\n| where timestamp > ago(30m)\n| where cloud_RoleName in~ (\"apps-prod.otelapidemo\", \"apps-prod.otelapidemo-python\")\n   or (\n      tostring(customDimensions[\"service.namespace\"]) =~ \"apps-prod\"\n      and tostring(customDimensions[\"service.name\"]) in~ (\"otelapidemo\", \"otelapidemo-python\")\n   )\n| summarize\n    Total=count(),\n    Failed=countif(success == false),\n    FailRatePct=100.0 * todouble(countif(success == false)) / iif(count() == 0, 1.0, todouble(count())),\n    P95DurationMs=percentile(duration, 95)",
+        "size": 0,
+        "title": "KPI - Requests/FailRate/P95 (30m)",
+        "timeContext": {
+          "durationMs": 1800000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "runtime"
+      },
+      "name": "query - runtime-kpi"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "requests\n| where timestamp > ago(30m)\n| where cloud_RoleName in~ (\"apps-prod.otelapidemo\", \"apps-prod.otelapidemo-python\")\n   or (\n      tostring(customDimensions[\"service.namespace\"]) =~ \"apps-prod\"\n      and tostring(customDimensions[\"service.name\"]) in~ (\"otelapidemo\", \"otelapidemo-python\")\n   )\n| summarize\n    RequestCount=count(),\n    FailedCount=countif(success == false)\n  by cloud_RoleName, bin(timestamp, 5m)\n| order by timestamp asc",
+        "size": 0,
+        "title": "Requests and Failures Trend (5m)",
+        "timeContext": {
+          "durationMs": 1800000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "runtime"
+      },
+      "name": "query - runtime-req-fail"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "requests\n| where timestamp > ago(30m)\n| where cloud_RoleName in~ (\"apps-prod.otelapidemo\", \"apps-prod.otelapidemo-python\")\n   or (\n      tostring(customDimensions[\"service.namespace\"]) =~ \"apps-prod\"\n      and tostring(customDimensions[\"service.name\"]) in~ (\"otelapidemo\", \"otelapidemo-python\")\n   )\n| summarize\n    P50=percentile(duration, 50),\n    P95=percentile(duration, 95)\n  by cloud_RoleName, bin(timestamp, 5m)\n| order by timestamp asc",
+        "size": 0,
+        "title": "Request Latency Trend (P50/P95)",
+        "timeContext": {
+          "durationMs": 1800000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "runtime"
+      },
+      "name": "query - runtime-latency"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "exceptions\n| where timestamp > ago(30m)\n| where cloud_RoleName in~ (\"apps-prod.otelapidemo\", \"apps-prod.otelapidemo-python\")\n| summarize Count=count(), LastSeen=max(timestamp) by cloud_RoleName, type, outerMessage\n| top 20 by Count desc",
+        "size": 0,
+        "title": "Exceptions Top 20",
+        "timeContext": {
+          "durationMs": 1800000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "runtime"
+      },
+      "name": "query - runtime-exceptions"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "dependencies\n| where timestamp > ago(30m)\n| where cloud_RoleName in~ (\"apps-prod.otelapidemo\", \"apps-prod.otelapidemo-python\")\n| summarize\n    Total=count(),\n    Failed=countif(success == false),\n    FailRatePct=100.0 * todouble(countif(success == false)) / iif(count() == 0, 1.0, todouble(count())),\n    P95DurationMs=percentile(duration, 95)\n  by cloud_RoleName, type, target\n| order by Failed desc, P95DurationMs desc\n| take 30",
+        "size": 0,
+        "title": "Dependencies Health",
+        "timeContext": {
+          "durationMs": 1800000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "runtime"
+      },
+      "name": "query - runtime-deps"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## Collector Pipeline"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "pipeline"
+      },
+      "name": "text - pipeline"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let MetricRows = union isfuzzy=true\n  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),\n  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);\nMetricRows\n| where timestamp > ago(30m)\n| where name in (\n  \"otelcol_receiver_accepted_spans\",\n  \"otelcol_exporter_sent_spans\",\n  \"otelcol_receiver_accepted_log_records\",\n  \"otelcol_exporter_sent_log_records\",\n  \"otelcol_receiver_accepted_metric_points\",\n  \"otelcol_exporter_sent_metric_points\"\n)\n| summarize Total=sum(value) by name, cloud_RoleName, bin(timestamp, 5m)\n| order by timestamp asc",
+        "size": 0,
+        "title": "Collector Throughput (accepted vs sent)",
+        "timeContext": {
+          "durationMs": 1800000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "pipeline"
+      },
+      "name": "query - pipeline-throughput"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let MetricRows = union isfuzzy=true\n  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),\n  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);\nMetricRows\n| where timestamp > ago(30m)\n| where name in (\n  \"otelcol_exporter_send_failed_spans\",\n  \"otelcol_exporter_send_failed_log_records\",\n  \"otelcol_exporter_send_failed_metric_points\"\n)\n| summarize Failed=sum(value) by name, cloud_RoleName, bin(timestamp, 5m)\n| order by timestamp asc",
+        "size": 0,
+        "title": "Collector Export Failed",
+        "timeContext": {
+          "durationMs": 1800000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "pipeline"
+      },
+      "name": "query - pipeline-failed"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let MetricRows = union isfuzzy=true\n  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),\n  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);\nMetricRows\n| where timestamp > ago(30m)\n| where name in (\n  \"otelcol_receiver_refused_spans\",\n  \"otelcol_receiver_refused_log_records\",\n  \"otelcol_receiver_refused_metric_points\"\n)\n| summarize Refused=sum(value) by name, cloud_RoleName, bin(timestamp, 5m)\n| order by timestamp asc",
+        "size": 0,
+        "title": "Collector Receiver Refused",
+        "timeContext": {
+          "durationMs": 1800000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "pipeline"
+      },
+      "name": "query - pipeline-refused"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## App OTel Metrics"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "appmetrics"
+      },
+      "name": "text - appmetrics"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let MetricRows = union isfuzzy=true\n  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),\n  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);\nMetricRows\n| where timestamp > ago(30m)\n| where cloud_RoleName in~ (\"apps-prod.otelapidemo\", \"apps-prod.otelapidemo-python\")\n   or (\n      tostring(customDimensions[\"service.namespace\"]) =~ \"apps-prod\"\n      and tostring(customDimensions[\"service.name\"]) in~ (\"otelapidemo\", \"otelapidemo-python\")\n   )\n| summarize Points=count(), LastSeen=max(timestamp) by name, cloud_RoleName\n| order by Points desc",
+        "size": 0,
+        "title": "Metric Discovery",
+        "timeContext": {
+          "durationMs": 1800000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "appmetrics"
+      },
+      "name": "query - appmetrics-discovery"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let MetricRows = union isfuzzy=true\n  (customMetrics | project timestamp, name, value=todouble(value), cloud_RoleName, customDimensions),\n  (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);\nMetricRows\n| where timestamp > ago(30m)\n| where cloud_RoleName in~ (\"apps-prod.otelapidemo\", \"apps-prod.otelapidemo-python\")\n   or (\n      tostring(customDimensions[\"service.namespace\"]) =~ \"apps-prod\"\n      and tostring(customDimensions[\"service.name\"]) in~ (\"otelapidemo\", \"otelapidemo-python\")\n   )\n| where name has_any (\"http\", \"server\", \"request\", \"duration\", \"runtime\", \"process\", \"cpu\", \"memory\", \"gc\", \"thread\")\n| summarize AvgValue=avg(value), P95Value=percentile(value, 95), MaxValue=max(value) by name, cloud_RoleName, bin(timestamp, 5m)\n| order by timestamp asc",
+        "size": 0,
+        "title": "Common Runtime Metrics Trend",
+        "timeContext": {
+          "durationMs": 1800000
+        },
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart"
+      },
+      "conditionalVisibility": {
+        "parameterName": "selectedTab",
+        "comparison": "isEqualTo",
+        "value": "appmetrics"
+      },
+      "name": "query - appmetrics-runtime"
+    }
+  ],
+  "isLocked": false,
+  "fallbackResourceIds": []
+}

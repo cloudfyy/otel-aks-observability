@@ -19,6 +19,7 @@
 - apps/kustomization.yaml: production sample app Kustomize entrypoint (replaces ACR image names).
 - apps/otelapidemo-ingress.prod.yaml: shared production Ingress for sample apps (.NET and Python behind one Ingress resource).
 - alerts-kql.prod.md: alerting and KQL guidance for production.
+- appinsights-dashboard.prod.en.md: Application Insights dashboard guide (application runtime + common OTel metrics).
 - version-baseline.current.md: production version baseline and change ledger.
 - README.prod.md: Chinese production deployment guide.
 - README.prod.en.md: this English production deployment guide.

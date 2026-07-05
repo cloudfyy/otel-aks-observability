@@ -63,6 +63,7 @@ Main capabilities:
 - Prod network policy: [prod/networkpolicy.prod.yaml](prod/networkpolicy.prod.yaml)
 - Prod certificate config: [prod/collector-tls.prod.yaml](prod/collector-tls.prod.yaml)
 - Prod alert query guidance: [prod/alerts-kql.prod.md](prod/alerts-kql.prod.md)
+- App Insights dashboard guide (English): [prod/appinsights-dashboard.prod.en.md](prod/appinsights-dashboard.prod.en.md)
 - Prod version ledger: [prod/version-baseline.current.md](prod/version-baseline.current.md)
 
 ## Notes
