@@ -31,9 +31,9 @@ docker build -t <ACR_LOGIN_SERVER>/otelapipy:latest .
 docker run --rm -p 8000:8000 <ACR_LOGIN_SERVER>/otelapipy:latest
 ```
 
-## Kubernetes Manifests
+## Kubernetes
 
-- `deploy/otelapi-py.dev.yaml`: uses `observability/python-auto` annotation.
-- `deploy/otelapi-py.prod.yaml`: uses `observability/python-auto-prod` annotation.
+- `../dev/otelapidemo-python.yaml`: development sample manifest.
+- `../prod/apps/otelapidemo-python.yaml`: production sample manifest.
 
-Both manifests use `<ACR_LOGIN_SERVER>` as image placeholder. Inject the real ACR only during local deployment, and do not commit it back into manifests.
+Production deployment should use `../prod/apps/deploy-apps.ps1` or `../prod/apps/deploy-apps.sh` so the real ACR login server is injected locally and not committed to manifests.
