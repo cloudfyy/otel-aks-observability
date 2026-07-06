@@ -29,8 +29,9 @@
 3. Check whether `connection_string` in `otle-gateway-myvalues.yaml` is still a placeholder, and replace it with a real value first.
 4. Deploy or upgrade single collector (development mode).
 5. Apply Instrumentation CRDs.
-6. Deploy test applications.
-7. Verify collector pipeline counters and telemetry ingestion.
+6. Check whether `<ACR_LOGIN_SERVER>` in demo app yaml is still a placeholder, and replace it with a real value first.
+7. Deploy test applications.
+8. Verify collector pipeline counters and telemetry ingestion.
 
 ## Commands (bash)
 
@@ -56,12 +57,15 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 6) Deploy sample apps
+# 6) Check whether <ACR_LOGIN_SERVER> is still a placeholder in demo app yaml
+grep -Eq 'image:[[:space:]]*<ACR_LOGIN_SERVER>/otelapidemo:latest' ./dev/otelapidemo-dotnet.yaml && echo "Replace <ACR_LOGIN_SERVER> in ./dev/otelapidemo-dotnet.yaml before deployment" || echo "dotnet demo image login server looks set"
+
+# 7) Deploy sample apps
 kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
 # Optional: Python manifest is example-only for now; enable after validation
 # kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
-# 7) Verify basic status
+# 8) Verify basic status
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
@@ -92,18 +96,21 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 6) Deploy sample apps
+# 6) Check whether <ACR_LOGIN_SERVER> is still a placeholder in demo app yaml
+if (Select-String -Path ./dev/otelapidemo-dotnet.yaml -Pattern 'image:\s*<ACR_LOGIN_SERVER>/otelapidemo:latest' -Quiet) { Write-Host "Replace <ACR_LOGIN_SERVER> in ./dev/otelapidemo-dotnet.yaml before deployment" } else { Write-Host "dotnet demo image login server looks set" }
+
+# 7) Deploy sample apps
 kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
 # Optional: Python manifest is example-only for now; enable after validation
 # kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
-# 7) Verify basic status
+# 8) Verify basic status
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
 
-# 8) Collector pipeline counters (single collector)
+# 9) Collector pipeline counters (single collector)
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"

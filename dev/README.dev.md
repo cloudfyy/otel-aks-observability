@@ -29,8 +29,9 @@
 3. 检查 `otle-gateway-myvalues.yaml` 中的 `connection_string` 是否仍为占位符，并先替换为真实值。
 4. 部署或升级单 Collector（开发模式）。
 5. 应用 Instrumentation CRD。
-6. 部署示例应用。
-7. 验证 Collector 管道计数器与遥测上报。
+6. 检查 demo app yaml 中的 `<ACR_LOGIN_SERVER>` 是否仍为占位符，并先替换为真实值。
+7. 部署示例应用。
+8. 验证 Collector 管道计数器与遥测上报。
 
 ## 命令（bash）
 
@@ -56,12 +57,15 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 6) 部署示例应用
+# 6) 检查 demo app yaml 中的 <ACR_LOGIN_SERVER> 是否仍为占位符
+grep -Eq 'image:[[:space:]]*<ACR_LOGIN_SERVER>/otelapidemo:latest' ./dev/otelapidemo-dotnet.yaml && echo "请先将 ./dev/otelapidemo-dotnet.yaml 中的 <ACR_LOGIN_SERVER> 替换为真实值" || echo "dotnet demo 镜像地址看起来已设置"
+
+# 7) 部署示例应用
 kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
 # 可选：Python 清单当前仅示例用途，建议在测试通过后再启用
 # kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
-# 7) 验证基础状态
+# 8) 验证基础状态
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
@@ -92,18 +96,21 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 6) 部署示例应用
+# 6) 检查 demo app yaml 中的 <ACR_LOGIN_SERVER> 是否仍为占位符
+if (Select-String -Path ./dev/otelapidemo-dotnet.yaml -Pattern 'image:\s*<ACR_LOGIN_SERVER>/otelapidemo:latest' -Quiet) { Write-Host "请先将 ./dev/otelapidemo-dotnet.yaml 中的 <ACR_LOGIN_SERVER> 替换为真实值" } else { Write-Host "dotnet demo 镜像地址看起来已设置" }
+
+# 7) 部署示例应用
 kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
 # 可选：Python 清单当前仅示例用途，建议在测试通过后再启用
 # kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
-# 7) 验证基础状态
+# 8) 验证基础状态
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
 
-# 8) Collector 管道计数器（单 Collector）
+# 9) Collector 管道计数器（单 Collector）
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
