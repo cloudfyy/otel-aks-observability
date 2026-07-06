@@ -13,6 +13,7 @@ spec:
     type: parentbased_traceidratio
     argument: "1"
   dotnet:
+    image: <ACR_LOGIN_SERVER>/opentelemetry/autoinstrumentation-dotnet:1.15.0
     env:
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
         value: grpc
@@ -22,3 +23,8 @@ spec:
         value: "true"
       - name: OTEL_RESOURCE_ATTRIBUTES
         value: deployment.environment.name=prod
+      - name: OTEL_EXPORTER_OTLP_HEADERS
+        valueFrom:
+          secretKeyRef:
+            name: otel-exporter-secret
+            key: otlp_headers
