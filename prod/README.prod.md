@@ -38,16 +38,17 @@
 ## 部署顺序
 
 1. 标记客户端命名空间并应用 NetworkPolicy。
-2. 创建或更新 Application Insights 连接串密钥。
-3. 应用 cert-manager TLS 清单，生成 gateway 与 agent 证书。
-4. 部署 gateway collector（Deployment，多副本）。
-5. 部署 agent collector（DaemonSet）。
-6. 应用 agent Service 清单（为应用提供稳定 OTLP 入口）。
-7. 应用 agent 的 RBAC 清单（k8sattributes 元数据提取权限）。
-8. 应用 Instrumentation CRD。
-9. 部署 otelapidemo 示例应用（.NET 与 Python Service 均使用 `ClusterIP`）。
-10. 应用共享 Ingress，将 .NET 与 Python 放在同一个 Ingress 资源后。
-11. 验证基础状态。
+2. 安装或升级 OpenTelemetry Operator，并确认状态正常。
+3. 创建或更新 Application Insights 连接串密钥。
+4. 应用 cert-manager TLS 清单，生成 gateway 与 agent 证书。
+5. 部署 gateway collector（Deployment，多副本）。
+6. 部署 agent collector（DaemonSet）。
+7. 应用 agent Service 清单（为应用提供稳定 OTLP 入口）。
+8. 应用 agent 的 RBAC 清单（k8sattributes 元数据提取权限）。
+9. 应用 Instrumentation CRD。
+10. 部署 otelapidemo 示例应用（.NET 与 Python Service 均使用 `ClusterIP`）。
+11. 应用共享 Ingress，将 .NET 与 Python 放在同一个 Ingress 资源后。
+12. 验证基础状态。
 
 ## 命令（bash）
 
@@ -57,56 +58,62 @@ kubectl create namespace apps-prod --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-prod otel-client=true --overwrite
 kubectl apply -f ./prod/networkpolicy.prod.yaml
 
-# 2) 创建密钥
+# 2) 安装或升级 OpenTelemetry Operator（release 名称：opentelemetry-operator）
+helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-operator \
+  --version 0.118.0 \
+  -n opentelemetry-operator-system --create-namespace
+kubectl get pods -n opentelemetry-operator-system
+
+# 3) 创建密钥
 kubectl create secret generic appinsights-conn \
   -n observability \
   --from-literal=connection_string="<APP_INSIGHTS_CONNECTION_STRING>" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-# 3) 通过 cert-manager 创建 TLS 证书与密钥
+# 4) 通过 cert-manager 创建 TLS 证书与密钥
 kubectl apply -f ./prod/collector-tls.prod.yaml
 
-# 4) 部署 Gateway（release 名称：otel-gateway）
+# 5) 部署 Gateway（release 名称：otel-gateway）
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
   -f ./prod/gateway-values.prod.yaml
 
-# 4.5) 应用 Gateway headless Service（agent 按 traceID 路由到 gateway Pod）
+# 5.5) 应用 Gateway headless Service（agent 按 traceID 路由到 gateway Pod）
 kubectl apply -f ./prod/otel-gateway-headless.prod.yaml
 
-# 5) 部署 Agent（release 名称：otel-agent）
+# 6) 部署 Agent（release 名称：otel-agent）
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
   -f ./prod/agent-values.prod.yaml
 
-# 6) 应用 agent Service（稳定 OTLP 入口）
+# 7) 应用 agent Service（稳定 OTLP 入口）
 kubectl apply -f ./prod/otel-agent-service.prod.yaml
 
-# 7) 应用 agent RBAC（k8sattributes 权限）
+# 8) 应用 agent RBAC（k8sattributes 权限）
 kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 
-# 8) 应用 Instrumentation
+# 9) 应用 Instrumentation
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) 部署 otelapidemo 示例应用（本地替换 ACR 镜像地址，不提交真实 ACR）
+# 10) 部署 otelapidemo 示例应用（本地替换 ACR 镜像地址，不提交真实 ACR）
 # 先设置 ACR_LOGIN_SERVER，或创建 prod/apps/.env.local（示例：ACR_LOGIN_SERVER=myacr.azurecr.io）
 export ACR_LOGIN_SERVER="myacr.azurecr.io"
 ./prod/apps/deploy-apps.sh
 
-# 9.5) 安装或更新 NGINX Ingress Controller（AKS 使用 TCP 健康探针）
+# 10.5) 安装或更新 NGINX Ingress Controller（AKS 使用 TCP 健康探针）
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update ingress-nginx
 helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
   --namespace ingress-nginx --create-namespace \
   -f ./prod/ingress-nginx-values.prod.yaml
 
-# 10) 应用共享 Ingress（基于路径转发：/dotnet 与 /python）
+# 11) 应用共享 Ingress（基于路径转发：/dotnet 与 /python）
 kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
 
-# 11) 验证
+# 12) 验证
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get svc -n observability otel-agent-opentelemetry-collector
@@ -124,57 +131,63 @@ kubectl create namespace apps-prod --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-prod otel-client=true --overwrite
 kubectl apply -f ./prod/networkpolicy.prod.yaml
 
-# 2) 创建密钥
+# 2) 安装或升级 OpenTelemetry Operator（release 名称：opentelemetry-operator）
+helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-operator `
+  --version 0.118.0 `
+  -n opentelemetry-operator-system --create-namespace
+kubectl get pods -n opentelemetry-operator-system
+
+# 3) 创建密钥
 kubectl create secret generic appinsights-conn `
   -n observability `
   --from-literal=connection_string="<APP_INSIGHTS_CONNECTION_STRING>" `
   --dry-run=client -o yaml | kubectl apply -f -
 
-# 3) 通过 cert-manager 创建 TLS 证书与密钥
+# 4) 通过 cert-manager 创建 TLS 证书与密钥
 kubectl apply -f ./prod/collector-tls.prod.yaml
 
-# 4) 部署 Gateway（release 名称：otel-gateway）
+# 5) 部署 Gateway（release 名称：otel-gateway）
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
   -f ./prod/gateway-values.prod.yaml
 
-# 4.5) 应用 Gateway headless Service（agent 按 traceID 路由到 gateway Pod）
+# 5.5) 应用 Gateway headless Service（agent 按 traceID 路由到 gateway Pod）
 kubectl apply -f ./prod/otel-gateway-headless.prod.yaml
 
-# 5) 部署 Agent（release 名称：otel-agent）
+# 6) 部署 Agent（release 名称：otel-agent）
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
   -f ./prod/agent-values.prod.yaml
 
-# 6) 应用 agent Service（稳定 OTLP 入口）
+# 7) 应用 agent Service（稳定 OTLP 入口）
 kubectl apply -f ./prod/otel-agent-service.prod.yaml
 
-# 7) 应用 agent RBAC（k8sattributes 权限）
+# 8) 应用 agent RBAC（k8sattributes 权限）
 kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 
-# 8) 应用 Instrumentation
+# 9) 应用 Instrumentation
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) 部署 otelapidemo 示例应用（本地替换 ACR 镜像地址，不提交真实 ACR）
+# 10) 部署 otelapidemo 示例应用（本地替换 ACR 镜像地址，不提交真实 ACR）
 # 先设置 ACR_LOGIN_SERVER，或创建 prod/apps/.env.local（示例：ACR_LOGIN_SERVER=<ACR_LOGIN_SERVER>）
 $env:ACR_LOGIN_SERVER = "<ACR_LOGIN_SERVER>"
 ./prod/apps/deploy-apps.ps1
 # bash/zsh 可使用：./prod/apps/deploy-apps.sh
 
-# 9.5) 安装或更新 NGINX Ingress Controller（AKS 使用 TCP 健康探针）
+# 10.5) 安装或更新 NGINX Ingress Controller（AKS 使用 TCP 健康探针）
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update ingress-nginx
 helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx `
   --namespace ingress-nginx --create-namespace `
   -f ./prod/ingress-nginx-values.prod.yaml
 
-# 10) 应用共享 Ingress（基于路径转发：/dotnet 与 /python）
+# 11) 应用共享 Ingress（基于路径转发：/dotnet 与 /python）
 kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
 
-# 11) 验证
+# 12) 验证
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get svc -n observability otel-agent-opentelemetry-collector
@@ -184,12 +197,12 @@ kubectl get pods -n apps-prod
 kubectl get svc -n apps-prod otelapidemo otelapidemo-python
 kubectl get ingress -n apps-prod otelapidemo
 
-# 12) Collector 管道计数器（gateway）
+# 13) Collector 管道计数器（gateway）
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-gateway -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
-# 13) （可选）如你是从旧版 dev 清单迁移，才需要手工 patch 注解并重启
+# 14) （可选）如你是从旧版 dev 清单迁移，才需要手工 patch 注解并重启
 # 新的 ./prod/apps/otelapidemo-*.yaml 已内置生产注解，无需执行该步骤
 ```
 

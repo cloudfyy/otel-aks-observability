@@ -5,6 +5,8 @@ Update this file before and after each upgrade test.
 ## Static Config Targets (from repo)
 
 - Helm chart version target: `0.162.0`
+- OpenTelemetry Operator chart version target: `0.118.0`
+- OpenTelemetry Operator app version target: `0.153.0`
 - Gateway collector image target: `otel/opentelemetry-collector-contrib:0.154.0`
 - Agent collector image target: `otel/opentelemetry-collector-contrib:0.154.0`
 - Dotnet instrumentation CRD: `dotnet-auto-prod` (sampler `always_on`)
@@ -13,8 +15,8 @@ Update this file before and after each upgrade test.
 
 ## Config Version Ledger
 
-- Config version: `v1.0.4`
-- Config updated date: `2026-07-05`
+- Config version: `v1.0.5`
+- Config updated date: `2026-07-06`
 - Version marker format:
 	- Helm values files: top-of-file comments `# config-version` and `# config-updated`
 	- Kubernetes manifests: `metadata.annotations` with `otel.config/version` and `otel.config/updated`

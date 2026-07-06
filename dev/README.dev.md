@@ -20,16 +20,16 @@
 1. 已具备 AKS 集群访问权限，并已正确配置 kubectl 与 helm。
 2. `observability` 命名空间已存在。
 3. 应用命名空间已存在（示例：`apps-dev`）。
-4. OpenTelemetry Operator 已安装且状态正常。
-5. 若自动注入镜像使用私有仓库，请在应用命名空间配置 imagePullSecrets。
+4. 若自动注入镜像使用私有仓库，请在应用命名空间配置 imagePullSecrets。
 
 ## 部署顺序
 
 1. 创建并标记应用命名空间。
-2. 部署或升级单 Collector（开发模式）。
-3. 应用 Instrumentation CRD。
-4. 部署示例应用。
-5. 验证 Collector 管道计数器与遥测上报。
+2. 安装或升级 OpenTelemetry Operator，并确认状态正常。
+3. 部署或升级单 Collector（开发模式）。
+4. 应用 Instrumentation CRD。
+5. 部署示例应用。
+6. 验证 Collector 管道计数器与遥测上报。
 
 ## 命令（bash）
 
@@ -38,21 +38,26 @@
 kubectl create namespace apps-dev --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-dev otel-client=true --overwrite
 
-# 2) 部署单 Collector（release 名称：otel-collector）
+# 2) 安装或升级 OpenTelemetry Operator（release 名称：opentelemetry-operator）
+helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-operator \
+  -n opentelemetry-operator-system --create-namespace
+kubectl get pods -n opentelemetry-operator-system
+
+# 3) 部署单 Collector（release 名称：otel-collector）
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
   -n observability --create-namespace \
   -f ./dev/otle-gateway-myvalues.yaml
 
-# 3) 应用 Instrumentation CRD
+# 4) 应用 Instrumentation CRD
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 4) 部署示例应用
+# 5) 部署示例应用
 kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
 # 可选：Python 清单当前仅示例用途，建议在测试通过后再启用
 # kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
-# 5) 验证基础状态
+# 6) 验证基础状态
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
@@ -66,27 +71,32 @@ kubectl get pods -n apps-dev
 kubectl create namespace apps-dev --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-dev otel-client=true --overwrite
 
-# 2) 部署单 Collector（release 名称：otel-collector）
+# 2) 安装或升级 OpenTelemetry Operator（release 名称：opentelemetry-operator）
+helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-operator `
+  -n opentelemetry-operator-system --create-namespace
+kubectl get pods -n opentelemetry-operator-system
+
+# 3) 部署单 Collector（release 名称：otel-collector）
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
   -n observability --create-namespace `
   -f ./dev/otle-gateway-myvalues.yaml
 
-# 3) 应用 Instrumentation CRD
+# 4) 应用 Instrumentation CRD
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 4) 部署示例应用
+# 5) 部署示例应用
 kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
 # 可选：Python 清单当前仅示例用途，建议在测试通过后再启用
 # kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
-# 5) 验证基础状态
+# 6) 验证基础状态
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
 
-# 6) Collector 管道计数器（单 Collector）
+# 7) Collector 管道计数器（单 Collector）
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"

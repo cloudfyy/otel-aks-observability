@@ -37,16 +37,17 @@
 ## Deploy Order
 
 1. Label client namespaces and apply NetworkPolicy.
-2. Create/update Application Insights connection string secret.
-3. Apply cert-manager TLS manifests for gateway and agent certificates.
-4. Deploy gateway collector (Deployment, multi-replica).
-5. Deploy agent collector (DaemonSet).
-6. Apply agent Service manifest (stable OTLP endpoint for applications).
-7. Apply agent RBAC manifest (k8sattributes metadata extraction permissions).
-8. Apply Instrumentation CRD.
-9. Deploy otelapidemo sample applications (.NET and Python Services use `ClusterIP`).
-10. Apply the shared Ingress to place .NET and Python behind one Ingress resource.
-11. Verify baseline status.
+2. Install or upgrade OpenTelemetry Operator and verify it is healthy.
+3. Create/update Application Insights connection string secret.
+4. Apply cert-manager TLS manifests for gateway and agent certificates.
+5. Deploy gateway collector (Deployment, multi-replica).
+6. Deploy agent collector (DaemonSet).
+7. Apply agent Service manifest (stable OTLP endpoint for applications).
+8. Apply agent RBAC manifest (k8sattributes metadata extraction permissions).
+9. Apply Instrumentation CRD.
+10. Deploy otelapidemo sample applications (.NET and Python Services use `ClusterIP`).
+11. Apply the shared Ingress to place .NET and Python behind one Ingress resource.
+12. Verify baseline status.
 
 ## Commands (bash)
 
@@ -56,56 +57,62 @@ kubectl create namespace apps-prod --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-prod otel-client=true --overwrite
 kubectl apply -f ./prod/networkpolicy.prod.yaml
 
-# 2) Secret
+# 2) Install or upgrade OpenTelemetry Operator (release name: opentelemetry-operator)
+helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-operator \
+  --version 0.118.0 \
+  -n opentelemetry-operator-system --create-namespace
+kubectl get pods -n opentelemetry-operator-system
+
+# 3) Secret
 kubectl create secret generic appinsights-conn \
   -n observability \
   --from-literal=connection_string="<APP_INSIGHTS_CONNECTION_STRING>" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-# 3) TLS certificates and secrets via cert-manager
+# 4) TLS certificates and secrets via cert-manager
 kubectl apply -f ./prod/collector-tls.prod.yaml
 
-# 4) Gateway (release name: otel-gateway)
+# 5) Gateway (release name: otel-gateway)
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
   -f ./prod/gateway-values.prod.yaml
 
-# 4.5) Apply Gateway headless Service (agent routes to gateway Pods by trace ID)
+# 5.5) Apply Gateway headless Service (agent routes to gateway Pods by trace ID)
 kubectl apply -f ./prod/otel-gateway-headless.prod.yaml
 
-# 5) Agent (release name: otel-agent)
+# 6) Agent (release name: otel-agent)
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector \
   --version 0.162.0 \
   -n observability --create-namespace \
   -f ./prod/agent-values.prod.yaml
 
-# 6) Apply agent Service (stable OTLP endpoint)
+# 7) Apply agent Service (stable OTLP endpoint)
 kubectl apply -f ./prod/otel-agent-service.prod.yaml
 
-# 7) Apply agent RBAC (k8sattributes permissions)
+# 8) Apply agent RBAC (k8sattributes permissions)
 kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 
-# 8) Instrumentation
+# 9) Instrumentation
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) Deploy otelapidemo sample apps (local ACR replacement; real ACR is not committed)
+# 10) Deploy otelapidemo sample apps (local ACR replacement; real ACR is not committed)
 # Set ACR_LOGIN_SERVER first, or create prod/apps/.env.local (example: ACR_LOGIN_SERVER=myacr.azurecr.io)
 export ACR_LOGIN_SERVER="myacr.azurecr.io"
 ./prod/apps/deploy-apps.sh
 
-# 9.5) Install or update NGINX Ingress Controller (AKS uses TCP health probe)
+# 10.5) Install or update NGINX Ingress Controller (AKS uses TCP health probe)
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update ingress-nginx
 helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
   --namespace ingress-nginx --create-namespace \
   -f ./prod/ingress-nginx-values.prod.yaml
 
-# 10) Apply shared Ingress (path-based routing: /dotnet and /python)
+# 11) Apply shared Ingress (path-based routing: /dotnet and /python)
 kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
 
-# 11) Verify
+# 12) Verify
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get svc -n observability otel-agent-opentelemetry-collector
@@ -123,57 +130,63 @@ kubectl create namespace apps-prod --dry-run=client -o yaml | kubectl apply -f -
 kubectl label namespace apps-prod otel-client=true --overwrite
 kubectl apply -f ./prod/networkpolicy.prod.yaml
 
-# 2) Secret
+# 2) Install or upgrade OpenTelemetry Operator (release name: opentelemetry-operator)
+helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-operator `
+  --version 0.118.0 `
+  -n opentelemetry-operator-system --create-namespace
+kubectl get pods -n opentelemetry-operator-system
+
+# 3) Secret
 kubectl create secret generic appinsights-conn `
   -n observability `
   --from-literal=connection_string="<APP_INSIGHTS_CONNECTION_STRING>" `
   --dry-run=client -o yaml | kubectl apply -f -
 
-# 3) TLS certificates and secrets via cert-manager
+# 4) TLS certificates and secrets via cert-manager
 kubectl apply -f ./prod/collector-tls.prod.yaml
 
-# 4) Gateway (release name: otel-gateway)
+# 5) Gateway (release name: otel-gateway)
 helm upgrade --install otel-gateway open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
   -f ./prod/gateway-values.prod.yaml
 
-# 4.5) Apply Gateway headless Service (agent routes to gateway Pods by trace ID)
+# 5.5) Apply Gateway headless Service (agent routes to gateway Pods by trace ID)
 kubectl apply -f ./prod/otel-gateway-headless.prod.yaml
 
-# 5) Agent (release name: otel-agent)
+# 6) Agent (release name: otel-agent)
 helm upgrade --install otel-agent open-telemetry/opentelemetry-collector `
   --version 0.162.0 `
   -n observability --create-namespace `
   -f ./prod/agent-values.prod.yaml
 
-# 6) Apply agent Service (stable OTLP endpoint)
+# 7) Apply agent Service (stable OTLP endpoint)
 kubectl apply -f ./prod/otel-agent-service.prod.yaml
 
-# 7) Apply agent RBAC (k8sattributes permissions)
+# 8) Apply agent RBAC (k8sattributes permissions)
 kubectl apply -f ./prod/otel-agent-rbac.prod.yaml
 
-# 8) Instrumentation
+# 9) Instrumentation
 kubectl apply -f ./prod/inst-crd-dotnet.prod.yaml
 kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
-# 9) Deploy otelapidemo sample apps (local ACR replacement; real ACR is not committed)
+# 10) Deploy otelapidemo sample apps (local ACR replacement; real ACR is not committed)
 # Set ACR_LOGIN_SERVER first, or create prod/apps/.env.local (example: ACR_LOGIN_SERVER=<ACR_LOGIN_SERVER>)
 $env:ACR_LOGIN_SERVER = "<ACR_LOGIN_SERVER>"
 ./prod/apps/deploy-apps.ps1
 # bash/zsh: ./prod/apps/deploy-apps.sh
 
-# 9.5) Install or update NGINX Ingress Controller (AKS uses TCP health probe)
+# 10.5) Install or update NGINX Ingress Controller (AKS uses TCP health probe)
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update ingress-nginx
 helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx `
   --namespace ingress-nginx --create-namespace `
   -f ./prod/ingress-nginx-values.prod.yaml
 
-# 10) Apply shared Ingress (path-based routing: /dotnet and /python)
+# 11) Apply shared Ingress (path-based routing: /dotnet and /python)
 kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
 
-# 11) Verify
+# 12) Verify
 kubectl get pods -n observability
 kubectl get deploy,ds -n observability
 kubectl get svc -n observability otel-agent-opentelemetry-collector
@@ -183,12 +196,12 @@ kubectl get pods -n apps-prod
 kubectl get svc -n apps-prod otelapidemo otelapidemo-python
 kubectl get ingress -n apps-prod otelapidemo
 
-# 12) Collector pipeline counters (gateway)
+# 13) Collector pipeline counters (gateway)
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-gateway -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
-# 13) (Optional) Only needed when migrating old dev manifests
+# 14) (Optional) Only needed when migrating old dev manifests
 # New ./prod/apps/otelapidemo-*.yaml already include production annotations
 ```
 
