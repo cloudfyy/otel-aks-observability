@@ -70,6 +70,11 @@ kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
+
+# 9) Collector pipeline counters (single collector)
+pod=$(kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}')
+kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
+  grep -E "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 ```
 
 ## Commands (PowerShell)
