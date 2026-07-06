@@ -100,7 +100,7 @@ kubectl apply -f ./prod/inst-crd-python.prod.yaml
 
 # 10) 部署 otelapidemo 示例应用（本地替换 ACR 镜像地址，不提交真实 ACR）
 # 先设置 ACR_LOGIN_SERVER，或创建 prod/apps/.env.local（示例：ACR_LOGIN_SERVER=myacr.azurecr.io）
-export ACR_LOGIN_SERVER="myacr.azurecr.io"
+export ACR_LOGIN_SERVER="<ACR_LOGIN_SERVER>"
 ./prod/apps/deploy-apps.sh
 
 # 10.5) 安装或更新 NGINX Ingress Controller（AKS 使用 TCP 健康探针）
