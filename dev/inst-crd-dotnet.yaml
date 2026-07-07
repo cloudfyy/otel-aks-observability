@@ -22,7 +22,7 @@ spec:
       - name: OTEL_DOTNET_AUTO_LOGS_ENABLED
         value: "true"
       - name: OTEL_RESOURCE_ATTRIBUTES
-        value: deployment.environment.name=prod
+        value: deployment.environment.name=dev
       - name: OTEL_EXPORTER_OTLP_HEADERS
         valueFrom:
           secretKeyRef:

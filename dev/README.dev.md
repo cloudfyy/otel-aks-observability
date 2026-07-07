@@ -27,11 +27,12 @@
 1. 创建并标记应用命名空间。
 2. 安装或升级 OpenTelemetry Operator，并确认状态正常。
 3. 检查 `otle-gateway-myvalues.yaml` 中的 `connection_string` 是否仍为占位符，并先替换为真实值。
-4. 部署或升级单 Collector（开发模式）。
-5. 应用 Instrumentation CRD。
-6. 检查 demo app yaml 中的 `<ACR_LOGIN_SERVER>` 是否仍为占位符，并先替换为真实值。
-7. 部署示例应用。
-8. 验证 Collector 管道计数器与遥测上报。
+4. 应用 Collector 读取 Kubernetes 元数据所需的 RBAC。
+5. 部署或升级单 Collector（开发模式）。
+6. 应用 Instrumentation CRD。
+7. 检查 demo app yaml 中的 `<ACR_LOGIN_SERVER>` 是否仍为占位符，并先替换为真实值。
+8. 部署示例应用。
+9. 验证 Collector 管道计数器、Kubernetes 资源属性与遥测上报。
 
 ## 命令（bash）
 
@@ -48,30 +49,33 @@ kubectl get pods -n opentelemetry-operator-system
 # 3) 检查 connection_string 是否仍为占位符；如果输出提示，请先替换后再部署
 grep -q 'connection_string: "<APP_INSIGHTS_CONNECTION_STRING>"' ./dev/otle-gateway-myvalues.yaml && echo "请先将 ./dev/otle-gateway-myvalues.yaml 中的 <APP_INSIGHTS_CONNECTION_STRING> 替换为真实值" || echo "connection_string 已设置"
 
-# 4) 部署单 Collector（release 名称：otel-collector）
+# 4) 应用 k8sattributes 所需 RBAC
+kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
+
+# 5) 部署单 Collector（release 名称：otel-collector）
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
   -n observability --create-namespace \
   -f ./dev/otle-gateway-myvalues.yaml
 
-# 5) 应用 Instrumentation CRD
+# 6) 应用 Instrumentation CRD
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 6) 检查 demo app yaml 中的 <ACR_LOGIN_SERVER> 是否仍为占位符
+# 7) 检查 demo app yaml 中的 <ACR_LOGIN_SERVER> 是否仍为占位符
 grep -Eq 'image:[[:space:]]*<ACR_LOGIN_SERVER>/otelapidemo:latest' ./dev/otelapidemo-dotnet.yaml && echo "请先将 ./dev/otelapidemo-dotnet.yaml 中的 <ACR_LOGIN_SERVER> 替换为真实值" || echo "dotnet demo 镜像地址看起来已设置"
 
-# 7) 部署示例应用
+# 8) 部署示例应用
 kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
 # 可选：Python 清单当前仅示例用途，建议在测试通过后再启用
 # kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
-# 8) 验证基础状态
+# 9) 验证基础状态
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
 
-# 9) Collector 管道计数器（单 Collector）
+# 10) Collector 管道计数器（单 Collector）
 pod=$(kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}')
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   grep -E "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
@@ -92,30 +96,33 @@ kubectl get pods -n opentelemetry-operator-system
 # 3) 检查 connection_string 是否仍为占位符；如果输出提示，请先替换后再部署
 if (Select-String -Path ./dev/otle-gateway-myvalues.yaml -Pattern 'connection_string:\s*"<APP_INSIGHTS_CONNECTION_STRING>"' -Quiet) { Write-Host "请先将 ./dev/otle-gateway-myvalues.yaml 中的 <APP_INSIGHTS_CONNECTION_STRING> 替换为真实值" } else { Write-Host "connection_string 已设置" }
 
-# 4) 部署单 Collector（release 名称：otel-collector）
+# 4) 应用 k8sattributes 所需 RBAC
+kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
+
+# 5) 部署单 Collector（release 名称：otel-collector）
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
   -n observability --create-namespace `
   -f ./dev/otle-gateway-myvalues.yaml
 
-# 5) 应用 Instrumentation CRD
+# 6) 应用 Instrumentation CRD
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 6) 检查 demo app yaml 中的 <ACR_LOGIN_SERVER> 是否仍为占位符
+# 7) 检查 demo app yaml 中的 <ACR_LOGIN_SERVER> 是否仍为占位符
 if (Select-String -Path ./dev/otelapidemo-dotnet.yaml -Pattern 'image:\s*<ACR_LOGIN_SERVER>/otelapidemo:latest' -Quiet) { Write-Host "请先将 ./dev/otelapidemo-dotnet.yaml 中的 <ACR_LOGIN_SERVER> 替换为真实值" } else { Write-Host "dotnet demo 镜像地址看起来已设置" }
 
-# 7) 部署示例应用
+# 8) 部署示例应用
 kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
 # 可选：Python 清单当前仅示例用途，建议在测试通过后再启用
 # kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
 
-# 8) 验证基础状态
+# 9) 验证基础状态
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
 
-# 9) Collector 管道计数器（单 Collector）
+# 10) Collector 管道计数器（单 Collector）
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
@@ -139,8 +146,68 @@ metadata:
 
 - 当前开发基线采用单 Collector 部署。
 - 现有 dev values 同时包含 debug 与 azuremonitor exporter，便于联调与排障。
+- 当前 dev Collector 已启用 `k8sattributes` processor，用于自动补充 `k8s.*` 资源属性；应用侧 `OTEL_RESOURCE_ATTRIBUTES` 继续保留环境等静态标签。
 - 如果在 Azure Monitor 中看不到日志，先检查应用侧是否实际产生日志，以及 collector 的 sent/failed 计数器。
 - `current-values.yaml` 与 `myvalues.yaml` 作为历史/备用 values，不在默认命令中直接引用。
 - `otelapidemo-*.yaml` 中的镜像地址使用占位符 `<ACR_LOGIN_SERVER>`；部署时请通过本地临时替换或环境变量注入真实 ACR，不要将真实 ACR 写回并提交到清单。
 - `otelapidemo-python.yaml` 目前仅作为示例模板，尚未完成完整验证，建议先在独立环境回归测试后再启用。
 - 为提升 CRD 复用性，建议将服务级 OTEL_SERVICE_NAME 放在应用 Deployment 中，而非共享 Instrumentation CRD。
+
+## KQL 验证
+
+以下示例默认使用 Application Insights 兼容表 `traces` 与 `timestamp` 列；如果你的环境是 workspace-based 表，请将 `traces` 替换为 `AppTraces`，并将 `timestamp` 替换为 `TimeGenerated`。
+
+```kusto
+// 1) 查看最近 1 小时是否已带出 k8s 资源属性
+traces
+| where timestamp > ago(1h)
+| extend
+  service = tostring(customDimensions["service.name"]),
+  ns = tostring(customDimensions["k8s.namespace.name"]),
+  pod = tostring(customDimensions["k8s.pod.name"]),
+  deployment = tostring(customDimensions["k8s.deployment.name"]),
+  node = tostring(customDimensions["k8s.node.name"])
+| where isnotempty(ns) or isnotempty(pod) or isnotempty(deployment) or isnotempty(node)
+| project timestamp, service, ns, pod, deployment, node, message
+| order by timestamp desc
+| take 50
+```
+
+```kusto
+// 2) 统计哪些 k8s 字段已经开始有值
+traces
+| where timestamp > ago(1h)
+| summarize
+  ns_count = countif(isnotempty(tostring(customDimensions["k8s.namespace.name"]))),
+  pod_count = countif(isnotempty(tostring(customDimensions["k8s.pod.name"]))),
+  deployment_count = countif(isnotempty(tostring(customDimensions["k8s.deployment.name"]))),
+  container_count = countif(isnotempty(tostring(customDimensions["k8s.container.name"]))),
+  node_count = countif(isnotempty(tostring(customDimensions["k8s.node.name"])))
+```
+
+```kusto
+// 3) 按服务查看 k8s 元数据覆盖率
+traces
+| where timestamp > ago(1h)
+| extend
+  service = tostring(customDimensions["service.name"]),
+  ns = tostring(customDimensions["k8s.namespace.name"]),
+  pod = tostring(customDimensions["k8s.pod.name"])
+| summarize
+  total = count(),
+  with_ns = countif(isnotempty(ns)),
+  with_pod = countif(isnotempty(pod))
+  by service
+| order by total desc
+```
+
+```kusto
+// 4) 确认开发环境标签是否为 dev
+traces
+| where timestamp > ago(1h)
+| extend
+  service = tostring(customDimensions["service.name"]),
+  env = tostring(customDimensions["deployment.environment.name"])
+| summarize count() by service, env
+| order by count_ desc
+```
