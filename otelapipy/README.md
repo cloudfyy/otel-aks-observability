@@ -36,4 +36,8 @@ docker run --rm -p 8000:8000 <ACR_LOGIN_SERVER>/otelapipy:latest
 - `../dev/otelapidemo-python.yaml`: development sample manifest.
 - `../prod/apps/otelapidemo-python.yaml`: production sample manifest.
 
-Production deployment should use `../prod/apps/deploy-apps.ps1` or `../prod/apps/deploy-apps.sh` so the real ACR login server is injected locally and not committed to manifests.
+Development deployment should use `../dev/deploy-apps.ps1` or `../dev/deploy-apps.sh`.
+
+Production deployment should use `../prod/apps/deploy-apps.ps1` or `../prod/apps/deploy-apps.sh`.
+
+Both script sets inject the real ACR login server locally so it is not committed to manifests.

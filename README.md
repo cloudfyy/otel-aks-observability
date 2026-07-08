@@ -54,6 +54,8 @@
 - 生产示例应用 Kustomize 入口：[prod/apps/kustomization.yaml](prod/apps/kustomization.yaml)
 - 生产示例应用部署脚本（PowerShell）：[prod/apps/deploy-apps.ps1](prod/apps/deploy-apps.ps1)
 - 生产示例应用部署脚本（bash）：[prod/apps/deploy-apps.sh](prod/apps/deploy-apps.sh)
+- 开发示例应用部署脚本（PowerShell）：[dev/deploy-apps.ps1](dev/deploy-apps.ps1)
+- 开发示例应用部署脚本（bash）：[dev/deploy-apps.sh](dev/deploy-apps.sh)
 - 生产示例应用本地 ACR 配置模板：[prod/apps/.env.example](prod/apps/.env.example)
 - 生产示例应用共享 Ingress：[prod/apps/otelapidemo-ingress.prod.yaml](prod/apps/otelapidemo-ingress.prod.yaml)
 - Python API 源码入口：[otelapipy/app/main.py](otelapipy/app/main.py)

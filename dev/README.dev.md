@@ -32,7 +32,8 @@
 6. 应用 Instrumentation CRD。
 7. 检查 demo app yaml 中的 `<ACR_LOGIN_SERVER>` 是否仍为占位符，并先替换为真实值。
 8. 部署示例应用。
-9. 验证 Collector 管道计数器、Kubernetes 资源属性与遥测上报。
+9. 分别对 .NET 与 Python 示例应用进行一轮压力测试，触发 traces、logs 与 metrics。
+10. 验证 Collector 管道计数器、Kubernetes 资源属性与遥测上报。
 
 ## 命令（bash）
 
@@ -61,21 +62,31 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 7) 检查 demo app yaml 中的 <ACR_LOGIN_SERVER> 是否仍为占位符
-grep -Eq 'image:[[:space:]]*<ACR_LOGIN_SERVER>/otelapidemo:latest' ./dev/otelapidemo-dotnet.yaml && echo "请先将 ./dev/otelapidemo-dotnet.yaml 中的 <ACR_LOGIN_SERVER> 替换为真实值" || echo "dotnet demo 镜像地址看起来已设置"
+# 7) 通过部署脚本注入 ACR 并部署示例应用（推荐）
+export ACR_LOGIN_SERVER="myacr.azurecr.io"
+./dev/deploy-apps.sh
 
-# 8) 部署示例应用
-kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
-# 可选：Python 清单当前仅示例用途，建议在测试通过后再启用
-# kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
+# 9) 进行一轮压力测试（先测 .NET 示例应用）
+demo_host=$(kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+if [ -z "$demo_host" ]; then
+  demo_host=$(kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+fi
+seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${demo_host}/weatherforecast" > /dev/null
 
-# 9) 验证基础状态
+# 9b) 对 Python 示例应用进行压力测试（仅在已部署该示例时执行）
+python_demo_host=$(kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+if [ -z "$python_demo_host" ]; then
+  python_demo_host=$(kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+fi
+seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${python_demo_host}/weatherforecast" > /dev/null
+
+# 10) 验证基础状态
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
 
-# 10) Collector 管道计数器（单 Collector）
+# 11) Collector 管道计数器（单 Collector）
 pod=$(kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}')
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   grep -E "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
@@ -108,21 +119,31 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 7) 检查 demo app yaml 中的 <ACR_LOGIN_SERVER> 是否仍为占位符
-if (Select-String -Path ./dev/otelapidemo-dotnet.yaml -Pattern 'image:\s*<ACR_LOGIN_SERVER>/otelapidemo:latest' -Quiet) { Write-Host "请先将 ./dev/otelapidemo-dotnet.yaml 中的 <ACR_LOGIN_SERVER> 替换为真实值" } else { Write-Host "dotnet demo 镜像地址看起来已设置" }
+# 7) 通过部署脚本注入 ACR 并部署示例应用（推荐）
+$env:ACR_LOGIN_SERVER = "myacr.azurecr.io"
+./dev/deploy-apps.ps1
 
-# 8) 部署示例应用
-kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
-# 可选：Python 清单当前仅示例用途，建议在测试通过后再启用
-# kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
+# 9) 进行一轮压力测试（先测 .NET 示例应用）
+$demoHost = kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+if ([string]::IsNullOrWhiteSpace($demoHost)) {
+  $demoHost = kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+}
+1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${demoHost}/weatherforecast" -UseBasicParsing | Out-Null }
 
-# 9) 验证基础状态
+# 9b) 对 Python 示例应用进行压力测试（仅在已部署该示例时执行）
+$pythonDemoHost = kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+if ([string]::IsNullOrWhiteSpace($pythonDemoHost)) {
+  $pythonDemoHost = kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+}
+1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${pythonDemoHost}/weatherforecast" -UseBasicParsing | Out-Null }
+
+# 10) 验证基础状态
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
 
-# 10) Collector 管道计数器（单 Collector）
+# 11) Collector 管道计数器（单 Collector）
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
@@ -147,9 +168,10 @@ metadata:
 - 当前开发基线采用单 Collector 部署。
 - 现有 dev values 同时包含 debug 与 azuremonitor exporter，便于联调与排障。
 - 当前 dev Collector 已启用 `k8sattributes` processor，用于自动补充 `k8s.*` 资源属性；应用侧 `OTEL_RESOURCE_ATTRIBUTES` 继续保留环境等静态标签。
+- 压力测试命令现在同时覆盖 `.NET` 与 Python 示例应用的 `/weatherforecast` 接口；如果 Python 示例未部署，请跳过对应步骤。
 - 如果在 Azure Monitor 中看不到日志，先检查应用侧是否实际产生日志，以及 collector 的 sent/failed 计数器。
 - `current-values.yaml` 与 `myvalues.yaml` 作为历史/备用 values，不在默认命令中直接引用。
-- `otelapidemo-*.yaml` 中的镜像地址使用占位符 `<ACR_LOGIN_SERVER>`；部署时请通过本地临时替换或环境变量注入真实 ACR，不要将真实 ACR 写回并提交到清单。
+- `otelapidemo-*.yaml` 中的镜像地址使用占位符 `<ACR_LOGIN_SERVER>`；建议通过 `./dev/deploy-apps.ps1` 或 `./dev/deploy-apps.sh` 注入真实 ACR，不要将真实 ACR 写回并提交到清单。
 - `otelapidemo-python.yaml` 目前仅作为示例模板，尚未完成完整验证，建议先在独立环境回归测试后再启用。
 - 为提升 CRD 复用性，建议将服务级 OTEL_SERVICE_NAME 放在应用 Deployment 中，而非共享 Instrumentation CRD。
 

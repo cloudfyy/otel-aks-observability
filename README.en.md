@@ -54,6 +54,8 @@ Main capabilities:
 - Prod sample app Kustomize entrypoint: [prod/apps/kustomization.yaml](prod/apps/kustomization.yaml)
 - Prod sample app deployment script (PowerShell): [prod/apps/deploy-apps.ps1](prod/apps/deploy-apps.ps1)
 - Prod sample app deployment script (bash): [prod/apps/deploy-apps.sh](prod/apps/deploy-apps.sh)
+- Dev sample app deployment script (PowerShell): [dev/deploy-apps.ps1](dev/deploy-apps.ps1)
+- Dev sample app deployment script (bash): [dev/deploy-apps.sh](dev/deploy-apps.sh)
 - Prod sample app local ACR config template: [prod/apps/.env.example](prod/apps/.env.example)
 - Shared production Ingress for sample apps: [prod/apps/otelapidemo-ingress.prod.yaml](prod/apps/otelapidemo-ingress.prod.yaml)
 - Python API source entry: [otelapipy/app/main.py](otelapipy/app/main.py)

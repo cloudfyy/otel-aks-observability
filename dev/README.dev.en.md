@@ -32,7 +32,8 @@
 6. Apply Instrumentation CRDs.
 7. Check whether `<ACR_LOGIN_SERVER>` in demo app yaml is still a placeholder, and replace it with a real value first.
 8. Deploy test applications.
-9. Verify collector pipeline counters, Kubernetes resource attributes, and telemetry ingestion.
+9. Run a short load test against both the .NET and Python sample apps to generate traces, logs, and metrics.
+10. Verify collector pipeline counters, Kubernetes resource attributes, and telemetry ingestion.
 
 ## Commands (bash)
 
@@ -61,21 +62,31 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 7) Check whether <ACR_LOGIN_SERVER> is still a placeholder in demo app yaml
-grep -Eq 'image:[[:space:]]*<ACR_LOGIN_SERVER>/otelapidemo:latest' ./dev/otelapidemo-dotnet.yaml && echo "Replace <ACR_LOGIN_SERVER> in ./dev/otelapidemo-dotnet.yaml before deployment" || echo "dotnet demo image login server looks set"
+# 7) Inject ACR and deploy sample apps through the deployment script (recommended)
+export ACR_LOGIN_SERVER="myacr.azurecr.io"
+./dev/deploy-apps.sh
 
-# 8) Deploy sample apps
-kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
-# Optional: Python manifest is example-only for now; enable after validation
-# kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
+# 9) Run a short load test (first target the .NET sample app)
+demo_host=$(kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+if [ -z "$demo_host" ]; then
+  demo_host=$(kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+fi
+seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${demo_host}/weatherforecast" > /dev/null
 
-# 9) Verify basic status
+# 9b) Run the same load test against the Python sample app (only if it is deployed)
+python_demo_host=$(kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+if [ -z "$python_demo_host" ]; then
+  python_demo_host=$(kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+fi
+seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${python_demo_host}/weatherforecast" > /dev/null
+
+# 10) Verify basic status
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
 
-# 10) Collector pipeline counters (single collector)
+# 11) Collector pipeline counters (single collector)
 pod=$(kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}')
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   grep -E "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
@@ -108,21 +119,31 @@ helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
 kubectl apply -f ./dev/inst-crd-python.yaml
 
-# 7) Check whether <ACR_LOGIN_SERVER> is still a placeholder in demo app yaml
-if (Select-String -Path ./dev/otelapidemo-dotnet.yaml -Pattern 'image:\s*<ACR_LOGIN_SERVER>/otelapidemo:latest' -Quiet) { Write-Host "Replace <ACR_LOGIN_SERVER> in ./dev/otelapidemo-dotnet.yaml before deployment" } else { Write-Host "dotnet demo image login server looks set" }
+# 7) Inject ACR and deploy sample apps through the deployment script (recommended)
+$env:ACR_LOGIN_SERVER = "myacr.azurecr.io"
+./dev/deploy-apps.ps1
 
-# 8) Deploy sample apps
-kubectl apply -n apps-dev -f ./dev/otelapidemo-dotnet.yaml
-# Optional: Python manifest is example-only for now; enable after validation
-# kubectl apply -n apps-dev -f ./dev/otelapidemo-python.yaml
+# 9) Run a short load test (first target the .NET sample app)
+$demoHost = kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+if ([string]::IsNullOrWhiteSpace($demoHost)) {
+  $demoHost = kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+}
+1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${demoHost}/weatherforecast" -UseBasicParsing | Out-Null }
 
-# 9) Verify basic status
+# 9b) Run the same load test against the Python sample app (only if it is deployed)
+$pythonDemoHost = kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+if ([string]::IsNullOrWhiteSpace($pythonDemoHost)) {
+  $pythonDemoHost = kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+}
+1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${pythonDemoHost}/weatherforecast" -UseBasicParsing | Out-Null }
+
+# 10) Verify basic status
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get pods -n apps-dev
 
-# 10) Collector pipeline counters (single collector)
+# 11) Collector pipeline counters (single collector)
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
@@ -147,9 +168,10 @@ metadata:
 - This development baseline uses a single collector deployment.
 - Current dev values include debug and azuremonitor exporters for troubleshooting.
 - The current dev collector enables the `k8sattributes` processor to append `k8s.*` resource attributes automatically, while application-side `OTEL_RESOURCE_ATTRIBUTES` continues to hold static labels such as environment.
+- The load-test commands now cover both the .NET and Python sample apps on the `/weatherforecast` endpoint; skip the Python step if that sample app is not deployed.
 - If logs are not visible in Azure Monitor, first verify app-side log generation and collector sent/failed counters.
 - `current-values.yaml` and `myvalues.yaml` are kept as historical/alternate values and are not referenced by default commands.
-- Image fields in `otelapidemo-*.yaml` use the `<ACR_LOGIN_SERVER>` placeholder; inject the real ACR through local temporary replacement or environment variables during deployment, and do not write it back into committed manifests.
+- Image fields in `otelapidemo-*.yaml` use the `<ACR_LOGIN_SERVER>` placeholder; use `./dev/deploy-apps.ps1` or `./dev/deploy-apps.sh` to inject the real ACR during deployment, and do not write it back into committed manifests.
 - `otelapidemo-python.yaml` is currently an example template only and has not completed full validation; validate in an isolated environment before enabling.
 - For better CRD reuse, keep service-specific OTEL_SERVICE_NAME in application Deployment, not in shared Instrumentation CRD.
 
