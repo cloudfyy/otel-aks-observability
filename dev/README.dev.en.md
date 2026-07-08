@@ -94,6 +94,18 @@ echo "[python exception] ${python_exception_url}"
 seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$python_exception_url" |
   sort | uniq -c
 
+# 9d) New endpoint stress test (throw-and-catch-exception, covers both .NET and Python; expected HTTP 200)
+dotnet_handled_exception_url="http://${demo_host}/WeatherForecast/throw-and-catch-exception"
+python_handled_exception_url="http://${python_demo_host}/throw-and-catch-exception"
+
+echo "[dotnet handled exception] ${dotnet_handled_exception_url}"
+seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$dotnet_handled_exception_url" |
+  sort | uniq -c
+
+echo "[python handled exception] ${python_handled_exception_url}"
+seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$python_handled_exception_url" |
+  sort | uniq -c
+
 # 10) Verify basic status
 kubectl get pods -n observability
 kubectl get deploy -n observability
@@ -173,6 +185,24 @@ $pythonCodes = 1..$req | ForEach-Object -Parallel {
 } -ThrottleLimit $conc
 $pythonCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
 
+# 9d) New endpoint stress test (throw-and-catch-exception, covers both .NET and Python; expected HTTP 200)
+$dotnetHandledExceptionUrl = "http://${demoHost}/WeatherForecast/throw-and-catch-exception"
+$pythonHandledExceptionUrl = "http://${pythonDemoHost}/throw-and-catch-exception"
+
+Write-Host "[dotnet handled exception] $dotnetHandledExceptionUrl"
+$dotnetHandledCodes = 1..$req | ForEach-Object -Parallel {
+  $status = & curl.exe -L -sS -o NUL -w "%{http_code}" --max-time $using:timeoutSec $using:dotnetHandledExceptionUrl
+  if ([string]::IsNullOrWhiteSpace($status)) { "000" } else { $status.Trim() }
+} -ThrottleLimit $conc
+$dotnetHandledCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
+
+Write-Host "[python handled exception] $pythonHandledExceptionUrl"
+$pythonHandledCodes = 1..$req | ForEach-Object -Parallel {
+  $status = & curl.exe -L -sS -o NUL -w "%{http_code}" --max-time $using:timeoutSec $using:pythonHandledExceptionUrl
+  if ([string]::IsNullOrWhiteSpace($status)) { "000" } else { $status.Trim() }
+} -ThrottleLimit $conc
+$pythonHandledCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
+
 # 10) Verify basic status
 kubectl get pods -n observability
 kubectl get deploy -n observability
@@ -205,11 +235,11 @@ metadata:
 - Current dev values include debug and azuremonitor exporters for troubleshooting.
 - The current dev collector enables the `k8sattributes` processor to append `k8s.*` resource attributes automatically, while application-side `OTEL_RESOURCE_ATTRIBUTES` continues to hold static labels such as environment.
 - The load-test commands now cover both the .NET and Python sample apps on the `/weatherforecast` endpoint; skip the Python step if that sample app is not deployed.
-- Exception endpoint stress-test commands are inlined in step 9c to validate status code distribution on custom exception endpoints (expected HTTP 500).
+- Exception endpoint stress-test commands are inlined in steps 9c and 9d: `throw-custom-exception` is expected to return HTTP 500, and `throw-and-catch-exception` is expected to return HTTP 200.
 - If Python public endpoint tests return mixed 302/200 results and headers show an external redirect target, that redirect is typically injected by the public network path, not returned by application code or AKS pods.
 - This class of public redirect cannot be "disabled" in application code; mitigation is network-side governance (enterprise/ISP allowlisting, false-positive appeal) or exposure-path redesign.
 - Recommended exposure is ClusterIP services behind Ingress + domain + HTTPS, instead of direct bare public IP access.
-- For diagnosis, verify real app behavior from inside the cluster first: `kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception"`.
+- For diagnosis, verify real app behavior from inside the cluster first: `kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet-throw:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python-throw:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception; curl -s -o /dev/null -w 'dotnet-catch:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-and-catch-exception; curl -s -o /dev/null -w 'python-catch:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-and-catch-exception"`.
 - If logs are not visible in Azure Monitor, first verify app-side log generation and collector sent/failed counters.
 - Development uses `otel-gateway-myvalues.yaml` as the only default Collector values entrypoint.
 - Image fields in `otelapidemo-*.yaml` use the `<ACR_LOGIN_SERVER>` placeholder; use `./dev/deploy-apps.ps1` or `./dev/deploy-apps.sh` to inject the real ACR during deployment, and do not write it back into committed manifests.
@@ -292,7 +322,7 @@ let Ex = exceptions
 | project exTime=timestamp, operation_Id, exType=type, exMsg=outerMessage, exRole=cloud_RoleName;
 requests
 | where timestamp > ago(1h)
-| where url has "throw-custom-exception"
+| where url has "throw-custom-exception" or url has "throw-and-catch-exception"
 | where cloud_RoleName has "apps-dev"
   or tostring(customDimensions["service.namespace"]) =~ "apps-dev"
 | project reqTime=timestamp, operation_Id, reqRole=cloud_RoleName, name, url, resultCode, success

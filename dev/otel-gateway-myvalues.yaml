@@ -35,7 +35,8 @@ config:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
-    filelog:
+    file_log:
+      file_format: container
       include:
         - /var/log/pods/*/*/*.log
       exclude:
@@ -43,7 +44,6 @@ config:
       start_at: end
       include_file_path: true
       operators:
-        - type: container
         - type: regex_parser
           parse_from: attributes["log.file.path"]
           regex: '^/var/log/pods/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<pod_uid>[0-9a-fA-F-]+)/(?P<container_name>[^/]+)/(?P<restart_count>\d+)\.log$'
@@ -65,7 +65,7 @@ config:
       check_interval: 1s
       limit_percentage: 75
       spike_limit_percentage: 15
-    k8sattributes:
+    k8s_attributes:
       auth_type: serviceAccount
       passthrough: false
       pod_association:
@@ -97,13 +97,13 @@ config:
     pipelines:
       traces:
         receivers: [otlp]
-        processors: [memory_limiter, k8sattributes, batch]
+        processors: [memory_limiter, k8s_attributes, batch]
         exporters: [debug, azuremonitor]
       metrics:
         receivers: [otlp]
-        processors: [memory_limiter, k8sattributes, batch]
+        processors: [memory_limiter, k8s_attributes, batch]
         exporters: [debug, azuremonitor]
       logs:
-        receivers: [otlp, filelog]
-        processors: [memory_limiter, k8sattributes, batch]
+        receivers: [otlp, file_log]
+        processors: [memory_limiter, k8s_attributes, batch]
         exporters: [azuremonitor]

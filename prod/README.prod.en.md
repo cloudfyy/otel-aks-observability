@@ -386,7 +386,7 @@ union requests, dependencies, traces
 
 ### App Insights Exception Query KQL (30m)
 
-- Trigger one round of exception endpoints first (for example, `/dotnet/throw-custom-exception` and `/python/throw-custom-exception`), then wait 3-10 minutes before querying.
+- Trigger one round of exception endpoints first (for example, `/dotnet/throw-custom-exception`, `/python/throw-custom-exception`, `/dotnet/throw-and-catch-exception`, and `/python/throw-and-catch-exception`), then wait 3-10 minutes before querying.
 - Review `exceptions` first, then correlate with `requests` by `operation_Id`.
 
 ```kusto
@@ -409,7 +409,7 @@ let Ex = exceptions
 | project exTime=timestamp, operation_Id, exType=type, exMsg=outerMessage, exRole=cloud_RoleName;
 requests
 | where timestamp > ago(30m)
-| where url has "throw-custom-exception"
+| where url has "throw-custom-exception" or url has "throw-and-catch-exception"
 | where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
   or (
     tostring(customDimensions["service.namespace"]) =~ "apps-prod"

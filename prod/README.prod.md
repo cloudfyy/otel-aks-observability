@@ -387,7 +387,7 @@ union requests, dependencies, traces
 
 ### App Insights 异常查询 KQL（30 分钟）
 
-- 建议先触发一轮异常接口（如 `/dotnet/throw-custom-exception`、`/python/throw-custom-exception`），再等待 3-10 分钟查询。
+- 建议先触发一轮异常接口（如 `/dotnet/throw-custom-exception`、`/python/throw-custom-exception`、`/dotnet/throw-and-catch-exception`、`/python/throw-and-catch-exception`），再等待 3-10 分钟查询。
 - 先看 `exceptions` 总览，再与 `requests` 按 `operation_Id` 关联排查。
 
 ```kusto
@@ -410,7 +410,7 @@ let Ex = exceptions
 | project exTime=timestamp, operation_Id, exType=type, exMsg=outerMessage, exRole=cloud_RoleName;
 requests
 | where timestamp > ago(30m)
-| where url has "throw-custom-exception"
+| where url has "throw-custom-exception" or url has "throw-and-catch-exception"
 | where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
   or (
     tostring(customDimensions["service.namespace"]) =~ "apps-prod"
