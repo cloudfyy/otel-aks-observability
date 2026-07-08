@@ -80,6 +80,22 @@ if [ -z "$python_demo_host" ]; then
 fi
 seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${python_demo_host}/weatherforecast" > /dev/null
 
+# 9c) 异常接口压测（推荐，覆盖 .NET 与 Python，预期返回 500）
+req=100
+conc=20
+timeout=8
+
+dotnet_exception_url="http://${demo_host}/WeatherForecast/throw-custom-exception"
+python_exception_url="http://${python_demo_host}/throw-custom-exception"
+
+echo "[dotnet exception] ${dotnet_exception_url}"
+seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$dotnet_exception_url" |
+  sort | uniq -c
+
+echo "[python exception] ${python_exception_url}"
+seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$python_exception_url" |
+  sort | uniq -c
+
 # 10) 验证基础状态
 kubectl get pods -n observability
 kubectl get deploy -n observability
@@ -137,6 +153,28 @@ if ([string]::IsNullOrWhiteSpace($pythonDemoHost)) {
 }
 1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${pythonDemoHost}/weatherforecast" -UseBasicParsing | Out-Null }
 
+# 9c) 异常接口压测（推荐，覆盖 .NET 与 Python，预期返回 500）
+$req = 100
+$conc = 20
+$timeoutSec = 8
+
+$dotnetExceptionUrl = "http://${demoHost}/WeatherForecast/throw-custom-exception"
+$pythonExceptionUrl = "http://${pythonDemoHost}/throw-custom-exception"
+
+Write-Host "[dotnet exception] $dotnetExceptionUrl"
+$dotnetCodes = 1..$req | ForEach-Object -Parallel {
+  $status = & curl.exe -L -sS -o NUL -w "%{http_code}" --max-time $using:timeoutSec $using:dotnetExceptionUrl
+  if ([string]::IsNullOrWhiteSpace($status)) { "000" } else { $status.Trim() }
+} -ThrottleLimit $conc
+$dotnetCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
+
+Write-Host "[python exception] $pythonExceptionUrl"
+$pythonCodes = 1..$req | ForEach-Object -Parallel {
+  $status = & curl.exe -L -sS -o NUL -w "%{http_code}" --max-time $using:timeoutSec $using:pythonExceptionUrl
+  if ([string]::IsNullOrWhiteSpace($status)) { "000" } else { $status.Trim() }
+} -ThrottleLimit $conc
+$pythonCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
+
 # 10) 验证基础状态
 kubectl get pods -n observability
 kubectl get deploy -n observability
@@ -169,6 +207,11 @@ metadata:
 - 现有 dev values 同时包含 debug 与 azuremonitor exporter，便于联调与排障。
 - 当前 dev Collector 已启用 `k8sattributes` processor，用于自动补充 `k8s.*` 资源属性；应用侧 `OTEL_RESOURCE_ATTRIBUTES` 继续保留环境等静态标签。
 - 压力测试命令现在同时覆盖 `.NET` 与 Python 示例应用的 `/weatherforecast` 接口；如果 Python 示例未部署，请跳过对应步骤。
+- 异常接口压测命令已内联在本文档第 9c 步骤中，用于验证自定义异常接口返回码分布（预期 500）。
+- 若 Python 公网地址压测出现 302/200 混合，且响应头中出现外部跳转（如反诈中心页面），这通常是公网链路侧重定向，不是应用代码或 AKS Pod 本身返回。
+- 这类公网重定向无法在应用代码中“关闭”；应通过网络侧治理（企业网络/运营商白名单、误报申诉）或访问路径改造处理。
+- 推荐做法是将应用 Service 收敛为 ClusterIP，通过 Ingress + 域名 + HTTPS 对外暴露，避免直接使用裸公网 IP。
+- 诊断时可先用集群内探测确认真实行为：`kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception"`。
 - 如果在 Azure Monitor 中看不到日志，先检查应用侧是否实际产生日志，以及 collector 的 sent/failed 计数器。
 - `current-values.yaml` 与 `myvalues.yaml` 作为历史/备用 values，不在默认命令中直接引用。
 - `otelapidemo-*.yaml` 中的镜像地址使用占位符 `<ACR_LOGIN_SERVER>`；建议通过 `./dev/deploy-apps.ps1` 或 `./dev/deploy-apps.sh` 注入真实 ACR，不要将真实 ACR 写回并提交到清单。

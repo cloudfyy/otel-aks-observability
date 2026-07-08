@@ -80,6 +80,22 @@ if [ -z "$python_demo_host" ]; then
 fi
 seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${python_demo_host}/weatherforecast" > /dev/null
 
+# 9c) Exception endpoint stress test (recommended, covers both .NET and Python; expected HTTP 500)
+req=100
+conc=20
+timeout=8
+
+dotnet_exception_url="http://${demo_host}/WeatherForecast/throw-custom-exception"
+python_exception_url="http://${python_demo_host}/throw-custom-exception"
+
+echo "[dotnet exception] ${dotnet_exception_url}"
+seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$dotnet_exception_url" |
+  sort | uniq -c
+
+echo "[python exception] ${python_exception_url}"
+seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$python_exception_url" |
+  sort | uniq -c
+
 # 10) Verify basic status
 kubectl get pods -n observability
 kubectl get deploy -n observability
@@ -137,6 +153,28 @@ if ([string]::IsNullOrWhiteSpace($pythonDemoHost)) {
 }
 1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${pythonDemoHost}/weatherforecast" -UseBasicParsing | Out-Null }
 
+# 9c) Exception endpoint stress test (recommended, covers both .NET and Python; expected HTTP 500)
+$req = 100
+$conc = 20
+$timeoutSec = 8
+
+$dotnetExceptionUrl = "http://${demoHost}/WeatherForecast/throw-custom-exception"
+$pythonExceptionUrl = "http://${pythonDemoHost}/throw-custom-exception"
+
+Write-Host "[dotnet exception] $dotnetExceptionUrl"
+$dotnetCodes = 1..$req | ForEach-Object -Parallel {
+  $status = & curl.exe -L -sS -o NUL -w "%{http_code}" --max-time $using:timeoutSec $using:dotnetExceptionUrl
+  if ([string]::IsNullOrWhiteSpace($status)) { "000" } else { $status.Trim() }
+} -ThrottleLimit $conc
+$dotnetCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
+
+Write-Host "[python exception] $pythonExceptionUrl"
+$pythonCodes = 1..$req | ForEach-Object -Parallel {
+  $status = & curl.exe -L -sS -o NUL -w "%{http_code}" --max-time $using:timeoutSec $using:pythonExceptionUrl
+  if ([string]::IsNullOrWhiteSpace($status)) { "000" } else { $status.Trim() }
+} -ThrottleLimit $conc
+$pythonCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
+
 # 10) Verify basic status
 kubectl get pods -n observability
 kubectl get deploy -n observability
@@ -169,6 +207,11 @@ metadata:
 - Current dev values include debug and azuremonitor exporters for troubleshooting.
 - The current dev collector enables the `k8sattributes` processor to append `k8s.*` resource attributes automatically, while application-side `OTEL_RESOURCE_ATTRIBUTES` continues to hold static labels such as environment.
 - The load-test commands now cover both the .NET and Python sample apps on the `/weatherforecast` endpoint; skip the Python step if that sample app is not deployed.
+- Exception endpoint stress-test commands are inlined in step 9c to validate status code distribution on custom exception endpoints (expected HTTP 500).
+- If Python public endpoint tests return mixed 302/200 results and headers show an external redirect target (for example, anti-fraud pages), that redirect is typically injected by the public network path, not returned by application code or AKS pods.
+- This class of public redirect cannot be "disabled" in application code; mitigation is network-side governance (enterprise/ISP allowlisting, false-positive appeal) or exposure-path redesign.
+- Recommended exposure is ClusterIP services behind Ingress + domain + HTTPS, instead of direct bare public IP access.
+- For diagnosis, verify real app behavior from inside the cluster first: `kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception"`.
 - If logs are not visible in Azure Monitor, first verify app-side log generation and collector sent/failed counters.
 - `current-values.yaml` and `myvalues.yaml` are kept as historical/alternate values and are not referenced by default commands.
 - Image fields in `otelapidemo-*.yaml` use the `<ACR_LOGIN_SERVER>` placeholder; use `./dev/deploy-apps.ps1` or `./dev/deploy-apps.sh` to inject the real ACR during deployment, and do not write it back into committed manifests.
