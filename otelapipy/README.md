@@ -27,18 +27,18 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ## Docker
 
 ```bash
-docker build -t <ACR_LOGIN_SERVER>/otelapipy:1.0.2 .
-docker run --rm -p 8000:8000 <ACR_LOGIN_SERVER>/otelapipy:1.0.2
+docker build -t <ACR_LOGIN_SERVER>/otelapipy:1.0.3 .
+docker run --rm -p 8000:8000 <ACR_LOGIN_SERVER>/otelapipy:1.0.3
 ```
 
 Build and push to ACR scripts:
 
 ```powershell
-./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.2
+./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.3
 ```
 
 ```bash
-./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.2
+./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.3
 ```
 
 ## Kubernetes

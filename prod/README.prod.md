@@ -226,7 +226,7 @@ metadata:
 - 生产 trace 使用 gateway tail sampling：应用侧 `always_on` 全量上报，gateway 保留错误 trace、超过 1000ms 的慢 trace，并对其余正常 trace 做 10% 概率采样。
 - 当前 tail sampling 采用方案 B：gateway 保持多副本高可用，agent 的 traces pipeline 使用 `load_balancing/gateway` exporter 按 trace ID 路由到 headless Service 暴露的 gateway Pod，确保同一条 trace 的 span 进入同一个 tail sampler。
 - Collector 会统一补充资源属性：`deployment.environment.name=prod`、`cloud.provider=azure`、`cloud.platform=azure_aks`、`k8s.cluster.name=<AKS_CLUSTER_NAME>`，并在未显式设置时从 `k8s.namespace.name` 补充 `service.namespace`。
-- 示例应用会显式设置 `service.namespace=apps-prod` 与 `service.version=1.0.2`；生产应用建议将 `service.version` 替换为真实发布版本或镜像版本。
+- 示例应用会显式设置 `service.namespace=apps-prod` 与 `service.version=1.0.3`；生产应用建议将 `service.version` 替换为真实发布版本或镜像版本。
 - 应用通过服务 DNS `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317/4318` 上报到 agent。agent 的 traces pipeline 通过 `load_balancing/gateway` 和 gateway headless Service 按 trace ID 路由；metrics/logs pipeline 通过 `otlp_grpc/gateway` 发送到普通 gateway ClusterIP Service。
 - 生产示例应用不直接暴露 `LoadBalancer` Service；`.NET` 与 Python Service 均为 `ClusterIP`，外部访问统一通过 `apps/otelapidemo-ingress.prod.yaml` 中的共享 Ingress。
 - 共享 Ingress 基于路径转发：`/dotnet/*` 转发到 `.NET` Service，`/python/*` 转发到 Python Service。NGINX rewrite 会去掉前缀，后端应用仍使用原始路径 `/weatherforecast`，无需修改应用代码。
