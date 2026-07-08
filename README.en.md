@@ -39,7 +39,7 @@ Main capabilities:
 
 ## Key Files
 
-- Dev collector values: [dev/otle-gateway-myvalues.yaml](dev/otle-gateway-myvalues.yaml)
+- Dev collector values: [dev/otel-gateway-myvalues.yaml](dev/otel-gateway-myvalues.yaml)
 - Dev .NET Instrumentation CRD: [dev/inst-crd-dotnet.yaml](dev/inst-crd-dotnet.yaml)
 - Dev Python Instrumentation CRD: [dev/inst-crd-python.yaml](dev/inst-crd-python.yaml)
 - Prod gateway values: [prod/gateway-values.prod.yaml](prod/gateway-values.prod.yaml)

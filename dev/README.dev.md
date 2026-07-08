@@ -4,7 +4,7 @@
 
 ## 文件清单
 
-- otle-gateway-myvalues.yaml：当前开发主用的 Collector values（单 Collector）。
+- otel-gateway-myvalues.yaml：当前开发主用的 Collector values（单 Collector）。
 - inst-crd-dotnet.yaml：.NET 自动注入 Instrumentation CRD。
 - inst-crd-python.yaml：Python 自动注入 Instrumentation CRD。
 - otelapidemo-dotnet.yaml：.NET 示例应用部署清单。
@@ -24,7 +24,7 @@
 
 1. 创建并标记应用命名空间。
 2. 安装或升级 OpenTelemetry Operator，并确认状态正常。
-3. 检查 `otle-gateway-myvalues.yaml` 中的 `connection_string` 是否仍为占位符，并先替换为真实值。
+3. 检查 `otel-gateway-myvalues.yaml` 中的 `connection_string` 是否仍为占位符，并先替换为真实值。
 4. 应用 Collector 读取 Kubernetes 元数据所需的 RBAC。
 5. 部署或升级单 Collector（开发模式）。
 6. 应用 Instrumentation CRD。
@@ -46,7 +46,7 @@ helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-opera
 kubectl get pods -n opentelemetry-operator-system
 
 # 3) 检查 connection_string 是否仍为占位符；如果输出提示，请先替换后再部署
-grep -q 'connection_string: "<APP_INSIGHTS_CONNECTION_STRING>"' ./dev/otle-gateway-myvalues.yaml && echo "请先将 ./dev/otle-gateway-myvalues.yaml 中的 <APP_INSIGHTS_CONNECTION_STRING> 替换为真实值" || echo "connection_string 已设置"
+grep -q 'connection_string: "<APP_INSIGHTS_CONNECTION_STRING>"' ./dev/otel-gateway-myvalues.yaml && echo "请先将 ./dev/otel-gateway-myvalues.yaml 中的 <APP_INSIGHTS_CONNECTION_STRING> 替换为真实值" || echo "connection_string 已设置"
 
 # 4) 应用 k8sattributes 所需 RBAC
 kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
@@ -54,7 +54,7 @@ kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
 # 5) 部署单 Collector（release 名称：otel-collector）
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
   -n observability --create-namespace \
-  -f ./dev/otle-gateway-myvalues.yaml
+  -f ./dev/otel-gateway-myvalues.yaml
 
 # 6) 应用 Instrumentation CRD
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
@@ -119,7 +119,7 @@ helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-opera
 kubectl get pods -n opentelemetry-operator-system
 
 # 3) 检查 connection_string 是否仍为占位符；如果输出提示，请先替换后再部署
-if (Select-String -Path ./dev/otle-gateway-myvalues.yaml -Pattern 'connection_string:\s*"<APP_INSIGHTS_CONNECTION_STRING>"' -Quiet) { Write-Host "请先将 ./dev/otle-gateway-myvalues.yaml 中的 <APP_INSIGHTS_CONNECTION_STRING> 替换为真实值" } else { Write-Host "connection_string 已设置" }
+if (Select-String -Path ./dev/otel-gateway-myvalues.yaml -Pattern 'connection_string:\s*"<APP_INSIGHTS_CONNECTION_STRING>"' -Quiet) { Write-Host "请先将 ./dev/otel-gateway-myvalues.yaml 中的 <APP_INSIGHTS_CONNECTION_STRING> 替换为真实值" } else { Write-Host "connection_string 已设置" }
 
 # 4) 应用 k8sattributes 所需 RBAC
 kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
@@ -127,7 +127,7 @@ kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
 # 5) 部署单 Collector（release 名称：otel-collector）
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
   -n observability --create-namespace `
-  -f ./dev/otle-gateway-myvalues.yaml
+  -f ./dev/otel-gateway-myvalues.yaml
 
 # 6) 应用 Instrumentation CRD
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
@@ -211,7 +211,7 @@ metadata:
 - 推荐做法是将应用 Service 收敛为 ClusterIP，通过 Ingress + 域名 + HTTPS 对外暴露，避免直接使用裸公网 IP。
 - 诊断时可先用集群内探测确认真实行为：`kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception"`。
 - 如果在 Azure Monitor 中看不到日志，先检查应用侧是否实际产生日志，以及 collector 的 sent/failed 计数器。
-- 开发环境默认仅使用 `otle-gateway-myvalues.yaml` 作为 Collector values 配置入口。
+- 开发环境默认仅使用 `otel-gateway-myvalues.yaml` 作为 Collector values 配置入口。
 - `otelapidemo-*.yaml` 中的镜像地址使用占位符 `<ACR_LOGIN_SERVER>`；建议通过 `./dev/deploy-apps.ps1` 或 `./dev/deploy-apps.sh` 注入真实 ACR，不要将真实 ACR 写回并提交到清单。
 - `otelapidemo-python.yaml` 目前仅作为示例模板，尚未完成完整验证，建议先在独立环境回归测试后再启用。
 - 为提升 CRD 复用性，建议将服务级 OTEL_SERVICE_NAME 放在应用 Deployment 中，而非共享 Instrumentation CRD。

@@ -39,7 +39,7 @@
 
 ## 关键文件索引
 
-- 开发 collector values：[dev/otle-gateway-myvalues.yaml](dev/otle-gateway-myvalues.yaml)
+- 开发 collector values：[dev/otel-gateway-myvalues.yaml](dev/otel-gateway-myvalues.yaml)
 - 开发 .NET 注入 CRD：[dev/inst-crd-dotnet.yaml](dev/inst-crd-dotnet.yaml)
 - 开发 Python 注入 CRD：[dev/inst-crd-python.yaml](dev/inst-crd-python.yaml)
 - 生产 gateway values：[prod/gateway-values.prod.yaml](prod/gateway-values.prod.yaml)

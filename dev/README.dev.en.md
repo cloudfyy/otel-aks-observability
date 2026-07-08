@@ -4,7 +4,7 @@
 
 ## Files
 
-- otle-gateway-myvalues.yaml: primary Collector values for development (single-collector).
+- otel-gateway-myvalues.yaml: primary Collector values for development (single-collector).
 - inst-crd-dotnet.yaml: .NET auto-instrumentation CRD.
 - inst-crd-python.yaml: Python auto-instrumentation CRD.
 - otelapidemo-dotnet.yaml: .NET sample app manifest.
@@ -24,7 +24,7 @@
 
 1. Create and label application namespace.
 2. Install or upgrade OpenTelemetry Operator and verify it is healthy.
-3. Check whether `connection_string` in `otle-gateway-myvalues.yaml` is still a placeholder, and replace it with a real value first.
+3. Check whether `connection_string` in `otel-gateway-myvalues.yaml` is still a placeholder, and replace it with a real value first.
 4. Apply the RBAC required for the collector to read Kubernetes metadata.
 5. Deploy or upgrade single collector (development mode).
 6. Apply Instrumentation CRDs.
@@ -46,7 +46,7 @@ helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-opera
 kubectl get pods -n opentelemetry-operator-system
 
 # 3) Check whether connection_string is still a placeholder; replace it before deployment if prompted
-grep -q 'connection_string: "<APP_INSIGHTS_CONNECTION_STRING>"' ./dev/otle-gateway-myvalues.yaml && echo "Replace <APP_INSIGHTS_CONNECTION_STRING> in ./dev/otle-gateway-myvalues.yaml before deployment" || echo "connection_string looks set"
+grep -q 'connection_string: "<APP_INSIGHTS_CONNECTION_STRING>"' ./dev/otel-gateway-myvalues.yaml && echo "Replace <APP_INSIGHTS_CONNECTION_STRING> in ./dev/otel-gateway-myvalues.yaml before deployment" || echo "connection_string looks set"
 
 # 4) Apply RBAC required by k8sattributes
 kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
@@ -54,7 +54,7 @@ kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
 # 5) Deploy single collector (release name: otel-collector)
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
   -n observability --create-namespace \
-  -f ./dev/otle-gateway-myvalues.yaml
+  -f ./dev/otel-gateway-myvalues.yaml
 
 # 6) Apply Instrumentation CRDs
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
@@ -119,7 +119,7 @@ helm upgrade --install opentelemetry-operator open-telemetry/opentelemetry-opera
 kubectl get pods -n opentelemetry-operator-system
 
 # 3) Check whether connection_string is still a placeholder; replace it before deployment if prompted
-if (Select-String -Path ./dev/otle-gateway-myvalues.yaml -Pattern 'connection_string:\s*"<APP_INSIGHTS_CONNECTION_STRING>"' -Quiet) { Write-Host "Replace <APP_INSIGHTS_CONNECTION_STRING> in ./dev/otle-gateway-myvalues.yaml before deployment" } else { Write-Host "connection_string looks set" }
+if (Select-String -Path ./dev/otel-gateway-myvalues.yaml -Pattern 'connection_string:\s*"<APP_INSIGHTS_CONNECTION_STRING>"' -Quiet) { Write-Host "Replace <APP_INSIGHTS_CONNECTION_STRING> in ./dev/otel-gateway-myvalues.yaml before deployment" } else { Write-Host "connection_string looks set" }
 
 # 4) Apply RBAC required by k8sattributes
 kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
@@ -127,7 +127,7 @@ kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
 # 5) Deploy single collector (release name: otel-collector)
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
   -n observability --create-namespace `
-  -f ./dev/otle-gateway-myvalues.yaml
+  -f ./dev/otel-gateway-myvalues.yaml
 
 # 6) Apply Instrumentation CRDs
 kubectl apply -f ./dev/inst-crd-dotnet.yaml
@@ -211,7 +211,7 @@ metadata:
 - Recommended exposure is ClusterIP services behind Ingress + domain + HTTPS, instead of direct bare public IP access.
 - For diagnosis, verify real app behavior from inside the cluster first: `kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception"`.
 - If logs are not visible in Azure Monitor, first verify app-side log generation and collector sent/failed counters.
-- Development uses `otle-gateway-myvalues.yaml` as the only default Collector values entrypoint.
+- Development uses `otel-gateway-myvalues.yaml` as the only default Collector values entrypoint.
 - Image fields in `otelapidemo-*.yaml` use the `<ACR_LOGIN_SERVER>` placeholder; use `./dev/deploy-apps.ps1` or `./dev/deploy-apps.sh` to inject the real ACR during deployment, and do not write it back into committed manifests.
 - `otelapidemo-python.yaml` is currently an example template only and has not completed full validation; validate in an isolated environment before enabling.
 - For better CRD reuse, keep service-specific OTEL_SERVICE_NAME in application Deployment, not in shared Instrumentation CRD.
