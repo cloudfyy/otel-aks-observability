@@ -302,12 +302,12 @@ curl.exe -i --max-time 10 "http://$ingressAddress/dotnet/weatherforecast"
 curl.exe -i --max-time 10 "http://$ingressAddress/python/weatherforecast"
 ```
 
-#### Ingress 可访问，但 `/python/throw-custom-exception` 出现 302 并跳转到反诈页面
+#### Ingress 可访问，但 `/python/throw-custom-exception` 出现 302 跳转
 
 现象：
 
 - 集群内访问 Python Service（如 `http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception`）返回 `500`，符合预期。
-- 从公网访问 Ingress 地址（如 `http://<INGRESS_IP>/python/throw-custom-exception`）出现 `302`，且响应头 `Location` 指向反诈站点或其他外部地址。
+- 从公网访问 Ingress 地址（如 `http://<INGRESS_IP>/python/throw-custom-exception`）出现 `302`，且响应头 `Location` 指向其他外部地址。
 
 结论：该跳转通常由公网链路侧注入（企业出口网关/运营商链路安全策略），不是应用代码、Pod、或 Ingress rewrite 规则主动返回。
 

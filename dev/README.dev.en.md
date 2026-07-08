@@ -208,7 +208,7 @@ metadata:
 - The current dev collector enables the `k8sattributes` processor to append `k8s.*` resource attributes automatically, while application-side `OTEL_RESOURCE_ATTRIBUTES` continues to hold static labels such as environment.
 - The load-test commands now cover both the .NET and Python sample apps on the `/weatherforecast` endpoint; skip the Python step if that sample app is not deployed.
 - Exception endpoint stress-test commands are inlined in step 9c to validate status code distribution on custom exception endpoints (expected HTTP 500).
-- If Python public endpoint tests return mixed 302/200 results and headers show an external redirect target (for example, anti-fraud pages), that redirect is typically injected by the public network path, not returned by application code or AKS pods.
+- If Python public endpoint tests return mixed 302/200 results and headers show an external redirect target, that redirect is typically injected by the public network path, not returned by application code or AKS pods.
 - This class of public redirect cannot be "disabled" in application code; mitigation is network-side governance (enterprise/ISP allowlisting, false-positive appeal) or exposure-path redesign.
 - Recommended exposure is ClusterIP services behind Ingress + domain + HTTPS, instead of direct bare public IP access.
 - For diagnosis, verify real app behavior from inside the cluster first: `kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception"`.

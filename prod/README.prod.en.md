@@ -301,12 +301,12 @@ curl.exe -i --max-time 10 "http://$ingressAddress/dotnet/weatherforecast"
 curl.exe -i --max-time 10 "http://$ingressAddress/python/weatherforecast"
 ```
 
-#### Ingress is reachable, but `/python/throw-custom-exception` returns 302 and redirects to an anti-fraud page
+#### Ingress is reachable, but `/python/throw-custom-exception` returns 302 redirect
 
 Symptom:
 
 - Accessing Python Service inside the cluster (for example, `http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception`) returns `500` as expected.
-- Accessing the same route through public Ingress (for example, `http://<INGRESS_IP>/python/throw-custom-exception`) returns `302`, and the `Location` header points to an anti-fraud site or another external URL.
+- Accessing the same route through public Ingress (for example, `http://<INGRESS_IP>/python/throw-custom-exception`) returns `302`, and the `Location` header points to another external URL.
 
 Finding: this redirect is typically injected by the public network path (enterprise egress security or ISP-side security policy), not returned by application code, pods, or Ingress rewrite rules.
 
