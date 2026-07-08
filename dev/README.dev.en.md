@@ -213,6 +213,21 @@ kubectl get pods -n apps-dev
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
+
+# 12) Verify whether file_log receiver is working (container log collection)
+$pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
+
+# 12.1 Confirm file_log receiver is loaded in startup/runtime logs
+kubectl logs -n observability $pod --tail=200 |
+  Select-String -Pattern "file_log|stanza"
+
+# 12.2 Check file_log receiver counters from collector self-metrics
+kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
+  Select-String -Pattern 'otelcol_receiver_accepted_log_records.*receiver="file_log"|otelcol_receiver_refused_log_records.*receiver="file_log"'
+
+# 12.3 Inspect K8s container-log metadata in collected records (sample)
+kubectl logs -n observability $pod --tail=200 |
+  Select-String -Pattern "k8s.container.name|k8s.pod.name|k8s.namespace.name"
 ```
 
 ## Annotation Examples
@@ -234,12 +249,14 @@ metadata:
 - This development baseline uses a single collector deployment.
 - Current dev values include debug and azuremonitor exporters for troubleshooting.
 - The current dev collector enables the `k8sattributes` processor to append `k8s.*` resource attributes automatically, while application-side `OTEL_RESOURCE_ATTRIBUTES` continues to hold static labels such as environment.
+- The current dev collector enables the `file_log` receiver to collect container log files from nodes (`/var/log/pods/.../*.log`).
 - The load-test commands now cover both the .NET and Python sample apps on the `/weatherforecast` endpoint; skip the Python step if that sample app is not deployed.
 - Exception endpoint stress-test commands are inlined in steps 9c and 9d: `throw-custom-exception` is expected to return HTTP 500, and `throw-and-catch-exception` is expected to return HTTP 200.
 - If Python public endpoint tests return mixed 302/200 results and headers show an external redirect target, that redirect is typically injected by the public network path, not returned by application code or AKS pods.
 - This class of public redirect cannot be "disabled" in application code; mitigation is network-side governance (enterprise/ISP allowlisting, false-positive appeal) or exposure-path redesign.
 - Recommended exposure is ClusterIP services behind Ingress + domain + HTTPS, instead of direct bare public IP access.
 - For diagnosis, verify real app behavior from inside the cluster first: `kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet-throw:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python-throw:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception; curl -s -o /dev/null -w 'dotnet-catch:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-and-catch-exception; curl -s -o /dev/null -w 'python-catch:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-and-catch-exception"`.
+- Latest in-cluster stress result (100 requests per endpoint): `throw-custom-exception` returned HTTP 500; `throw-and-catch-exception` currently returned HTTP 404 (confirm app image upgrade and rollout status).
 - If logs are not visible in Azure Monitor, first verify app-side log generation and collector sent/failed counters.
 - Development uses `otel-gateway-myvalues.yaml` as the only default Collector values entrypoint.
 - Image fields in `otelapidemo-*.yaml` use the `<ACR_LOGIN_SERVER>` placeholder; use `./dev/deploy-apps.ps1` or `./dev/deploy-apps.sh` to inject the real ACR during deployment, and do not write it back into committed manifests.

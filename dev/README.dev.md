@@ -213,6 +213,21 @@ kubectl get pods -n apps-dev
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
+
+# 12) 查看 file_log 接收器是否在工作（容器日志采集）
+$pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
+
+# 12.1 启动日志中确认 file_log 接收器已加载
+kubectl logs -n observability $pod --tail=200 |
+  Select-String -Pattern "file_log|stanza"
+
+# 12.2 通过 Collector 自身 metrics 查看 file_log 接收计数
+kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
+  Select-String -Pattern 'otelcol_receiver_accepted_log_records.*receiver="file_log"|otelcol_receiver_refused_log_records.*receiver="file_log"'
+
+# 12.3 查看采集到的 K8s 容器日志元数据（示例）
+kubectl logs -n observability $pod --tail=200 |
+  Select-String -Pattern "k8s.container.name|k8s.pod.name|k8s.namespace.name"
 ```
 
 ## 注解示例
@@ -234,12 +249,14 @@ metadata:
 - 当前开发基线采用单 Collector 部署。
 - 现有 dev values 同时包含 debug 与 azuremonitor exporter，便于联调与排障。
 - 当前 dev Collector 已启用 `k8sattributes` processor，用于自动补充 `k8s.*` 资源属性；应用侧 `OTEL_RESOURCE_ATTRIBUTES` 继续保留环境等静态标签。
+- 当前 dev Collector 已启用 `file_log` 接收器采集节点上的容器日志文件（`/var/log/pods/.../*.log`）。
 - 压力测试命令现在同时覆盖 `.NET` 与 Python 示例应用的 `/weatherforecast` 接口；如果 Python 示例未部署，请跳过对应步骤。
 - 异常接口压测命令已内联在本文档第 9c 与 9d 步骤中：`throw-custom-exception` 预期返回 500，`throw-and-catch-exception` 预期返回 200。
 - 若 Python 公网地址压测出现 302/200 混合，且响应头中出现外部跳转，这通常是公网链路侧重定向，不是应用代码或 AKS Pod 本身返回。
 - 这类公网重定向无法在应用代码中“关闭”；应通过网络侧治理（企业网络/运营商白名单、误报申诉）或访问路径改造处理。
 - 推荐做法是将应用 Service 收敛为 ClusterIP，通过 Ingress + 域名 + HTTPS 对外暴露，避免直接使用裸公网 IP。
 - 诊断时可先用集群内探测确认真实行为：`kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet-throw:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python-throw:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception; curl -s -o /dev/null -w 'dotnet-catch:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-and-catch-exception; curl -s -o /dev/null -w 'python-catch:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-and-catch-exception"`。
+- 最近一次集群内压测结果（100 请求/接口）：`throw-custom-exception` 为 500；`throw-and-catch-exception` 当前为 404（请确认应用镜像已升级并完成滚动更新）。
 - 如果在 Azure Monitor 中看不到日志，先检查应用侧是否实际产生日志，以及 collector 的 sent/failed 计数器。
 - 开发环境默认仅使用 `otel-gateway-myvalues.yaml` 作为 Collector values 配置入口。
 - `otelapidemo-*.yaml` 中的镜像地址使用占位符 `<ACR_LOGIN_SERVER>`；建议通过 `./dev/deploy-apps.ps1` 或 `./dev/deploy-apps.sh` 注入真实 ACR，不要将真实 ACR 写回并提交到清单。
