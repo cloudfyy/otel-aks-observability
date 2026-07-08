@@ -8,7 +8,10 @@
 - inst-crd-dotnet.yaml: .NET auto-instrumentation CRD.
 - inst-crd-python.yaml: Python auto-instrumentation CRD.
 - otelapidemo-dotnet.yaml: .NET sample app manifest.
-- otelapidemo-python.yaml: Python sample app manifest template (example-only for now; further validation required).
+- otelapidemo-python.yaml: Python sample app manifest.
+- otel-ui.yaml: React UI deployment manifest.
+- otelapidemo-ingress.yaml: API ingress for `/dotnet/*` and `/python/*`.
+- otel-ui-ingress.yaml: UI ingress for `/`.
 - certmgr-test.yaml: cert-manager test manifest for development validation.
 - README.dev.md: Chinese development deployment guide.
 - README.dev.en.md: this English development deployment guide.
@@ -28,10 +31,11 @@
 4. Apply the RBAC required for the collector to read Kubernetes metadata.
 5. Deploy or upgrade single collector (development mode).
 6. Apply Instrumentation CRDs.
-7. Check whether `<ACR_LOGIN_SERVER>` in demo app yaml is still a placeholder, and replace it with a real value first.
-8. Deploy test applications.
-9. Run a short load test against both the .NET and Python sample apps to generate traces, logs, and metrics.
-10. Verify collector pipeline counters, Kubernetes resource attributes, and telemetry ingestion.
+7. Check whether `<ACR_LOGIN_SERVER>` in the application manifests is still a placeholder, and replace it with a real value first.
+8. Deploy the `.NET`, Python, and React UI sample applications.
+9. Get the UI ingress address and validate `/`, `/dotnet/*`, and `/python/*` through the shared public entrypoint.
+10. Run a short load test against both the .NET and Python sample apps to generate traces, logs, and metrics.
+11. Verify collector pipeline counters, Kubernetes resource attributes, and telemetry ingestion.
 
 ## Commands (bash)
 
@@ -64,27 +68,28 @@ kubectl apply -f ./dev/inst-crd-python.yaml
 export ACR_LOGIN_SERVER="myacr.azurecr.io"
 ./dev/deploy-apps.sh
 
-# 9) Run a short load test (first target the .NET sample app)
-demo_host=$(kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-if [ -z "$demo_host" ]; then
-  demo_host=$(kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+# 8) Get the unified ingress address and validate the shared entrypoint
+ingress_host=$(kubectl get ingress -n apps-dev otel-ui -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+if [ -z "$ingress_host" ]; then
+  ingress_host=$(kubectl get ingress -n apps-dev otel-ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 fi
-seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${demo_host}/weatherforecast" > /dev/null
+curl -fsS "http://${ingress_host}/" > /dev/null
+curl -fsS "http://${ingress_host}/dotnet/weatherforecast" > /dev/null
+curl -fsS "http://${ingress_host}/python/weatherforecast" > /dev/null
 
-# 9b) Run the same load test against the Python sample app (only if it is deployed)
-python_demo_host=$(kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-if [ -z "$python_demo_host" ]; then
-  python_demo_host=$(kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-fi
-seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${python_demo_host}/weatherforecast" > /dev/null
+# 9) Run a short load test (first target the .NET sample app)
+seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${ingress_host}/dotnet/weatherforecast" > /dev/null
+
+# 9b) Run the same load test against the Python sample app
+seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${ingress_host}/python/weatherforecast" > /dev/null
 
 # 9c) Exception endpoint stress test (recommended, covers both .NET and Python; expected HTTP 500)
 req=100
 conc=20
 timeout=8
 
-dotnet_exception_url="http://${demo_host}/WeatherForecast/throw-custom-exception"
-python_exception_url="http://${python_demo_host}/throw-custom-exception"
+dotnet_exception_url="http://${ingress_host}/dotnet/WeatherForecast/throw-custom-exception"
+python_exception_url="http://${ingress_host}/python/throw-custom-exception"
 
 echo "[dotnet exception] ${dotnet_exception_url}"
 seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$dotnet_exception_url" |
@@ -95,8 +100,8 @@ seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_
   sort | uniq -c
 
 # 9d) New endpoint stress test (throw-and-catch-exception, covers both .NET and Python; expected HTTP 200)
-dotnet_handled_exception_url="http://${demo_host}/WeatherForecast/throw-and-catch-exception"
-python_handled_exception_url="http://${python_demo_host}/throw-and-catch-exception"
+dotnet_handled_exception_url="http://${ingress_host}/dotnet/WeatherForecast/throw-and-catch-exception"
+python_handled_exception_url="http://${ingress_host}/python/throw-and-catch-exception"
 
 echo "[dotnet handled exception] ${dotnet_handled_exception_url}"
 seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$dotnet_handled_exception_url" |
@@ -110,7 +115,7 @@ seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
-kubectl get pods -n apps-dev
+kubectl get deploy,svc,ingress -n apps-dev
 
 # 11) Collector pipeline counters (single collector)
 pod=$(kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}')
@@ -149,27 +154,28 @@ kubectl apply -f ./dev/inst-crd-python.yaml
 $env:ACR_LOGIN_SERVER = "myacr.azurecr.io"
 ./dev/deploy-apps.ps1
 
-# 9) Run a short load test (first target the .NET sample app)
-$demoHost = kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-if ([string]::IsNullOrWhiteSpace($demoHost)) {
-  $demoHost = kubectl get svc -n apps-dev otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+# 8) Get the unified ingress address and validate the shared entrypoint
+$ingressHost = kubectl get ingress -n apps-dev otel-ui -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+if ([string]::IsNullOrWhiteSpace($ingressHost)) {
+  $ingressHost = kubectl get ingress -n apps-dev otel-ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 }
-1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${demoHost}/weatherforecast" -UseBasicParsing | Out-Null }
+Invoke-WebRequest -Uri "http://${ingressHost}/" -UseBasicParsing | Out-Null
+Invoke-WebRequest -Uri "http://${ingressHost}/dotnet/weatherforecast" -UseBasicParsing | Out-Null
+Invoke-WebRequest -Uri "http://${ingressHost}/python/weatherforecast" -UseBasicParsing | Out-Null
 
-# 9b) Run the same load test against the Python sample app (only if it is deployed)
-$pythonDemoHost = kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-if ([string]::IsNullOrWhiteSpace($pythonDemoHost)) {
-  $pythonDemoHost = kubectl get svc -n apps-dev otelapidemo-python -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
-}
-1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${pythonDemoHost}/weatherforecast" -UseBasicParsing | Out-Null }
+# 9) Run a short load test (first target the .NET sample app)
+1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${ingressHost}/dotnet/weatherforecast" -UseBasicParsing | Out-Null }
+
+# 9b) Run the same load test against the Python sample app
+1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${ingressHost}/python/weatherforecast" -UseBasicParsing | Out-Null }
 
 # 9c) Exception endpoint stress test (recommended, covers both .NET and Python; expected HTTP 500)
 $req = 100
 $conc = 20
 $timeoutSec = 8
 
-$dotnetExceptionUrl = "http://${demoHost}/WeatherForecast/throw-custom-exception"
-$pythonExceptionUrl = "http://${pythonDemoHost}/throw-custom-exception"
+$dotnetExceptionUrl = "http://${ingressHost}/dotnet/WeatherForecast/throw-custom-exception"
+$pythonExceptionUrl = "http://${ingressHost}/python/throw-custom-exception"
 
 Write-Host "[dotnet exception] $dotnetExceptionUrl"
 $dotnetCodes = 1..$req | ForEach-Object -Parallel {
@@ -186,8 +192,8 @@ $pythonCodes = 1..$req | ForEach-Object -Parallel {
 $pythonCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
 
 # 9d) New endpoint stress test (throw-and-catch-exception, covers both .NET and Python; expected HTTP 200)
-$dotnetHandledExceptionUrl = "http://${demoHost}/WeatherForecast/throw-and-catch-exception"
-$pythonHandledExceptionUrl = "http://${pythonDemoHost}/throw-and-catch-exception"
+$dotnetHandledExceptionUrl = "http://${ingressHost}/dotnet/WeatherForecast/throw-and-catch-exception"
+$pythonHandledExceptionUrl = "http://${ingressHost}/python/throw-and-catch-exception"
 
 Write-Host "[dotnet handled exception] $dotnetHandledExceptionUrl"
 $dotnetHandledCodes = 1..$req | ForEach-Object -Parallel {
@@ -207,7 +213,7 @@ $pythonHandledCodes | Group-Object | Sort-Object Name | Format-Table Name, Count
 kubectl get pods -n observability
 kubectl get deploy -n observability
 kubectl get instrumentation -n observability
-kubectl get pods -n apps-dev
+kubectl get deploy,svc,ingress -n apps-dev
 
 # 11) Collector pipeline counters (single collector)
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
@@ -250,13 +256,15 @@ metadata:
 - Current dev values include debug and azuremonitor exporters for troubleshooting.
 - The current dev collector enables the `k8sattributes` processor to append `k8s.*` resource attributes automatically, while application-side `OTEL_RESOURCE_ATTRIBUTES` continues to hold static labels such as environment.
 - The current dev collector enables the `file_log` receiver to collect container log files from nodes (`/var/log/pods/.../*.log`).
-- The load-test commands now cover both the .NET and Python sample apps on the `/weatherforecast` endpoint; skip the Python step if that sample app is not deployed.
+- Development now exposes a unified ingress entrypoint: `/` serves the React UI, `/dotnet/*` routes to the .NET API, and `/python/*` routes to the Python API.
+- `dev/deploy-apps.ps1` and `dev/deploy-apps.sh` deploy the `.NET`, Python, and React UI apps together with both ingress resources.
+- Current development image baseline: `.NET`=`1.0.4`, Python=`1.0.4`, UI=`1.0.1`.
+- The load-test commands now cover both the .NET and Python sample apps on the `/weatherforecast` endpoint through the ingress entrypoint.
 - Exception endpoint stress-test commands are inlined in steps 9c and 9d: `throw-custom-exception` is expected to return HTTP 500, and `throw-and-catch-exception` is expected to return HTTP 200.
 - If Python public endpoint tests return mixed 302/200 results and headers show an external redirect target, that redirect is typically injected by the public network path, not returned by application code or AKS pods.
 - This class of public redirect cannot be "disabled" in application code; mitigation is network-side governance (enterprise/ISP allowlisting, false-positive appeal) or exposure-path redesign.
 - Recommended exposure is ClusterIP services behind Ingress + domain + HTTPS, instead of direct bare public IP access.
 - For diagnosis, verify real app behavior from inside the cluster first: `kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet-throw:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python-throw:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception; curl -s -o /dev/null -w 'dotnet-catch:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-and-catch-exception; curl -s -o /dev/null -w 'python-catch:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-and-catch-exception"`.
-- Latest in-cluster stress result (100 requests per endpoint): `throw-custom-exception` returned HTTP 500; `throw-and-catch-exception` currently returned HTTP 404 (confirm app image upgrade and rollout status).
 - If logs are not visible in Azure Monitor, first verify app-side log generation and collector sent/failed counters.
 - Development uses `otel-gateway-myvalues.yaml` as the only default Collector values entrypoint.
 - Image fields in `otelapidemo-*.yaml` use the `<ACR_LOGIN_SERVER>` placeholder; use `./dev/deploy-apps.ps1` or `./dev/deploy-apps.sh` to inject the real ACR during deployment, and do not write it back into committed manifests.

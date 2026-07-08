@@ -16,8 +16,10 @@
 - inst-crd-python.prod.yaml: production Python auto-instrumentation CRD.
 - apps/otelapidemo-dotnet.yaml: production .NET sample app manifest (production annotation preconfigured).
 - apps/otelapidemo-python.yaml: production Python sample app manifest (production annotation preconfigured).
+- apps/otel-ui.yaml: production React UI manifest.
 - apps/kustomization.yaml: production sample app Kustomize entrypoint (replaces ACR image names).
-- apps/otelapidemo-ingress.prod.yaml: shared production Ingress for sample apps (.NET and Python behind one Ingress resource).
+- apps/otelapidemo-ingress.prod.yaml: production API ingress for `/dotnet/*` and `/python/*`.
+- apps/otel-ui-ingress.prod.yaml: production UI ingress for `/`.
 - alerts-kql.prod.md: alerting and KQL guidance for production.
 - appinsights-dashboard.prod.en.md: Application Insights dashboard guide (application runtime + common OTel metrics).
 - version-baseline.current.md: production version baseline and change ledger.
@@ -45,9 +47,9 @@
 7. Apply agent Service manifest (stable OTLP endpoint for applications).
 8. Apply agent RBAC manifest (k8sattributes metadata extraction permissions).
 9. Apply Instrumentation CRD.
-10. Deploy otelapidemo sample applications (.NET and Python Services use `ClusterIP`).
-11. Apply the shared Ingress to place .NET and Python behind one Ingress resource.
-12. Verify baseline status.
+10. Deploy the `.NET`, Python, and React UI sample applications (all Services use `ClusterIP`).
+11. Apply the API ingress and the UI root ingress.
+12. Verify the unified entrypoint, baseline status, and Collector metrics.
 
 ## Commands (bash)
 
@@ -109,8 +111,9 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
   --namespace ingress-nginx --create-namespace \
   -f ./prod/ingress-nginx-values.prod.yaml
 
-# 11) Apply shared Ingress (path-based routing: /dotnet and /python)
+# 11) Apply API ingress and UI root ingress
 kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
+kubectl apply -n apps-prod -f ./prod/apps/otel-ui-ingress.prod.yaml
 
 # 12) Verify
 kubectl get pods -n observability
@@ -118,8 +121,8 @@ kubectl get deploy,ds -n observability
 kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
-kubectl get svc -n apps-prod otelapidemo otelapidemo-python
-kubectl get ingress -n apps-prod otelapidemo
+kubectl get svc -n apps-prod otelapidemo otelapidemo-python otel-ui
+kubectl get ingress -n apps-prod otelapidemo otel-ui
 ```
 
 ## Commands (PowerShell)
@@ -183,8 +186,9 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx `
   --namespace ingress-nginx --create-namespace `
   -f ./prod/ingress-nginx-values.prod.yaml
 
-# 11) Apply shared Ingress (path-based routing: /dotnet and /python)
+# 11) Apply API ingress and UI root ingress
 kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
+kubectl apply -n apps-prod -f ./prod/apps/otel-ui-ingress.prod.yaml
 
 # 12) Verify
 kubectl get pods -n observability
@@ -193,8 +197,8 @@ kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get instrumentation -n observability
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
-kubectl get svc -n apps-prod otelapidemo otelapidemo-python
-kubectl get ingress -n apps-prod otelapidemo
+kubectl get svc -n apps-prod otelapidemo otelapidemo-python otel-ui
+kubectl get ingress -n apps-prod otelapidemo otel-ui
 
 # 13) Collector pipeline counters (gateway)
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-gateway -o jsonpath='{.items[0].metadata.name}'
@@ -225,10 +229,10 @@ metadata:
 - Production traces use gateway tail sampling: applications use `always_on` and send all spans, while gateway keeps error traces, traces slower than 1000ms, and applies 10% probabilistic sampling to the remaining normal traces.
 - Tail sampling currently uses option B: gateway keeps multiple replicas for high availability, while the agent traces pipeline uses the `load_balancing/gateway` exporter to route by trace ID to gateway Pods exposed through a headless Service. This keeps all spans for one trace on the same tail sampler.
 - Collectors standardize resource attributes by adding `deployment.environment.name=prod`, `cloud.provider=azure`, `cloud.platform=azure_aks`, `k8s.cluster.name=<AKS_CLUSTER_NAME>`, and by filling `service.namespace` from `k8s.namespace.name` when the application has not set it explicitly.
-- The sample applications explicitly set `service.namespace=apps-prod` and `service.version=1.0.3`; production workloads should replace `service.version` with the real release or image version.
+- The sample applications explicitly set `service.namespace=apps-prod`; the current sample image baseline is `.NET`=`1.0.4`, Python=`1.0.4`, and UI=`1.0.1`. Production workloads should replace `service.version` with the real release or image version.
 - Applications send OTLP to `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317/4318`. The agent traces pipeline uses `load_balancing/gateway` plus the gateway headless Service to route by trace ID; metrics/logs pipelines use `otlp_grpc/gateway` through the regular gateway ClusterIP Service.
-- Production sample applications do not expose `LoadBalancer` Services directly. Both `.NET` and Python Services use `ClusterIP`, and external access is routed through the shared Ingress in `apps/otelapidemo-ingress.prod.yaml`.
-- The shared Ingress uses path-based routing: `/dotnet/*` routes to the `.NET` Service, and `/python/*` routes to the Python Service. NGINX rewrite strips the prefix, so backend applications keep their original `/weatherforecast` route and do not need code changes.
+- Production sample applications do not expose `LoadBalancer` Services directly. `.NET`, Python, and UI Services all use `ClusterIP`.
+- External access still uses one public ingress entrypoint, but it is split into two Ingress resources: `apps/otel-ui-ingress.prod.yaml` serves `/`, while `apps/otelapidemo-ingress.prod.yaml` serves `/dotnet/*` and `/python/*`. The split is intentional because the API ingress depends on NGINX rewrite annotations and the UI root path should not share those rewrite rules.
 - The same agent/gateway architecture applies to Python workloads; only the Instrumentation CRD and application annotation differ.
 - Image fields in `apps/otelapidemo-*.yaml` keep the `<ACR_LOGIN_SERVER>` placeholder; deployment scripts `prod/apps/deploy-apps.ps1` and `prod/apps/deploy-apps.sh` read the real ACR from the `ACR_LOGIN_SERVER` environment variable or ignored local file `prod/apps/.env.local`, then replace the placeholder only before applying to the cluster.
 - Real ACR, subscription, and publish profile values are not committed. For local publish settings, copy `otelapidemo/otelapidemo/Properties/PublishProfiles/acr.pubxml.example` to a local `.pubxml` file and fill in the values.

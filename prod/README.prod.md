@@ -16,8 +16,10 @@
 - inst-crd-python.prod.yaml：生产 Python 自动注入 Instrumentation CRD。
 - apps/otelapidemo-dotnet.yaml：生产 .NET 示例应用清单（已内置生产注解）。
 - apps/otelapidemo-python.yaml：生产 Python 示例应用清单（已内置生产注解）。
+- apps/otel-ui.yaml：生产 React UI 清单。
 - apps/kustomization.yaml：生产示例应用 Kustomize 入口（替换 ACR 镜像地址）。
-- apps/otelapidemo-ingress.prod.yaml：生产示例应用共享 Ingress（.NET 与 Python 共用一个 Ingress 资源）。
+- apps/otelapidemo-ingress.prod.yaml：生产 API 路由 Ingress（`/dotnet/*` 与 `/python/*`）。
+- apps/otel-ui-ingress.prod.yaml：生产 UI 根路径 Ingress（`/`）。
 - alerts-kql.prod.md：生产告警与 KQL 建议。
 - appinsights-dashboard.prod.md：Application Insights 仪表盘（程序运行 + OTel 常用指标）建议。
 - appinsights-dashboard.prod.en.md：Application Insights dashboard 英文说明。
@@ -46,9 +48,9 @@
 7. 应用 agent Service 清单（为应用提供稳定 OTLP 入口）。
 8. 应用 agent 的 RBAC 清单（k8sattributes 元数据提取权限）。
 9. 应用 Instrumentation CRD。
-10. 部署 otelapidemo 示例应用（.NET 与 Python Service 均使用 `ClusterIP`）。
-11. 应用共享 Ingress，将 .NET 与 Python 放在同一个 Ingress 资源后。
-12. 验证基础状态。
+10. 部署 `.NET`、Python 与 React UI 示例应用（Service 均使用 `ClusterIP`）。
+11. 应用 API 路由 Ingress 与 UI 根路径 Ingress。
+12. 验证统一入口、基础状态与 Collector 指标。
 
 ## 命令（bash）
 
@@ -110,8 +112,9 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
   --namespace ingress-nginx --create-namespace \
   -f ./prod/ingress-nginx-values.prod.yaml
 
-# 11) 应用共享 Ingress（基于路径转发：/dotnet 与 /python）
+# 11) 应用 API 路由 Ingress 与 UI 根路径 Ingress
 kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
+kubectl apply -n apps-prod -f ./prod/apps/otel-ui-ingress.prod.yaml
 
 # 12) 验证
 kubectl get pods -n observability
@@ -119,8 +122,8 @@ kubectl get deploy,ds -n observability
 kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
-kubectl get svc -n apps-prod otelapidemo otelapidemo-python
-kubectl get ingress -n apps-prod otelapidemo
+kubectl get svc -n apps-prod otelapidemo otelapidemo-python otel-ui
+kubectl get ingress -n apps-prod otelapidemo otel-ui
 ```
 
 ## 命令（PowerShell）
@@ -184,8 +187,9 @@ helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx `
   --namespace ingress-nginx --create-namespace `
   -f ./prod/ingress-nginx-values.prod.yaml
 
-# 11) 应用共享 Ingress（基于路径转发：/dotnet 与 /python）
+# 11) 应用 API 路由 Ingress 与 UI 根路径 Ingress
 kubectl apply -n apps-prod -f ./prod/apps/otelapidemo-ingress.prod.yaml
+kubectl apply -n apps-prod -f ./prod/apps/otel-ui-ingress.prod.yaml
 
 # 12) 验证
 kubectl get pods -n observability
@@ -194,8 +198,8 @@ kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get instrumentation -n observability
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
-kubectl get svc -n apps-prod otelapidemo otelapidemo-python
-kubectl get ingress -n apps-prod otelapidemo
+kubectl get svc -n apps-prod otelapidemo otelapidemo-python otel-ui
+kubectl get ingress -n apps-prod otelapidemo otel-ui
 
 # 13) Collector 管道计数器（gateway）
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-gateway -o jsonpath='{.items[0].metadata.name}'
@@ -226,10 +230,10 @@ metadata:
 - 生产 trace 使用 gateway tail sampling：应用侧 `always_on` 全量上报，gateway 保留错误 trace、超过 1000ms 的慢 trace，并对其余正常 trace 做 10% 概率采样。
 - 当前 tail sampling 采用方案 B：gateway 保持多副本高可用，agent 的 traces pipeline 使用 `load_balancing/gateway` exporter 按 trace ID 路由到 headless Service 暴露的 gateway Pod，确保同一条 trace 的 span 进入同一个 tail sampler。
 - Collector 会统一补充资源属性：`deployment.environment.name=prod`、`cloud.provider=azure`、`cloud.platform=azure_aks`、`k8s.cluster.name=<AKS_CLUSTER_NAME>`，并在未显式设置时从 `k8s.namespace.name` 补充 `service.namespace`。
-- 示例应用会显式设置 `service.namespace=apps-prod` 与 `service.version=1.0.3`；生产应用建议将 `service.version` 替换为真实发布版本或镜像版本。
+- 示例应用会显式设置 `service.namespace=apps-prod`；当前示例镜像版本基线为 `.NET`=`1.0.4`、Python=`1.0.4`、UI=`1.0.1`。生产应用建议将 `service.version` 替换为真实发布版本或镜像版本。
 - 应用通过服务 DNS `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317/4318` 上报到 agent。agent 的 traces pipeline 通过 `load_balancing/gateway` 和 gateway headless Service 按 trace ID 路由；metrics/logs pipeline 通过 `otlp_grpc/gateway` 发送到普通 gateway ClusterIP Service。
-- 生产示例应用不直接暴露 `LoadBalancer` Service；`.NET` 与 Python Service 均为 `ClusterIP`，外部访问统一通过 `apps/otelapidemo-ingress.prod.yaml` 中的共享 Ingress。
-- 共享 Ingress 基于路径转发：`/dotnet/*` 转发到 `.NET` Service，`/python/*` 转发到 Python Service。NGINX rewrite 会去掉前缀，后端应用仍使用原始路径 `/weatherforecast`，无需修改应用代码。
+- 生产示例应用不直接暴露 `LoadBalancer` Service；`.NET`、Python 与 UI Service 均为 `ClusterIP`。
+- 对外入口保持统一，但拆成两个 Ingress 资源：`apps/otel-ui-ingress.prod.yaml` 提供 `/`，`apps/otelapidemo-ingress.prod.yaml` 提供 `/dotnet/*` 与 `/python/*`。拆分的原因是 API Ingress 依赖 NGINX rewrite 注解，而 UI 根路径不应复用这组 rewrite 规则。
 - 相同的 agent/gateway 架构同样适用于 Python 负载；差异仅在 Instrumentation CRD 与应用注解。
 - `apps/otelapidemo-*.yaml` 中的镜像地址保留占位符 `<ACR_LOGIN_SERVER>`；部署脚本 `prod/apps/deploy-apps.ps1` 与 `prod/apps/deploy-apps.sh` 会从环境变量 `ACR_LOGIN_SERVER` 或本地忽略文件 `prod/apps/.env.local` 读取真实 ACR，并只在应用到集群前替换。
 - 真实 ACR、订阅与发布配置不提交到仓库；如需本地发布配置，可从 `otelapidemo/otelapidemo/Properties/PublishProfiles/acr.pubxml.example` 复制为本地 `.pubxml` 文件后填写。
