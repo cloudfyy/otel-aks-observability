@@ -45,7 +45,7 @@ namespace otelapidemo.Controllers
         {
             try
             {
-                throw new CustomTestException("This exception is thrown and handled in .NET test endpoint.");
+                ThrowLevel1();
             }
             catch (Exception ex)
             {
@@ -59,6 +59,21 @@ namespace otelapidemo.Controllers
                 message = "Exception was thrown, caught, and printed to console.",
                 handled = true
             });
+        }
+
+        private void ThrowLevel1()
+        {
+            ThrowLevel2();
+        }
+
+        private void ThrowLevel2()
+        {
+            ThrowLevel3();
+        }
+
+        private void ThrowLevel3()
+        {
+            throw new CustomTestException("This exception is thrown and handled in .NET test endpoint.");
         }
     }
 }

@@ -63,9 +63,7 @@ def throw_custom_exception() -> None:
 @app.get("/throw-and-catch-exception")
 def throw_and_catch_exception() -> dict[str, object]:
     try:
-        raise CustomTestException(
-            "This exception is thrown and handled in Python test endpoint."
-        )
+        _throw_level1()
     except Exception as ex:
         print(f"[Handled Exception] {type(ex).__name__}: {ex}")
         print(traceback.format_exc())
@@ -75,3 +73,17 @@ def throw_and_catch_exception() -> dict[str, object]:
         "message": "Exception was thrown, caught, and printed to console.",
         "handled": True,
     }
+
+
+def _throw_level1() -> None:
+    _throw_level2()
+
+
+def _throw_level2() -> None:
+    _throw_level3()
+
+
+def _throw_level3() -> None:
+    raise CustomTestException(
+        "This exception is thrown and handled in Python test endpoint."
+    )
