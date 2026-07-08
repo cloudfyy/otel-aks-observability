@@ -2,7 +2,7 @@
 set -euo pipefail
 
 acr_login_server="${ACR_LOGIN_SERVER:-}"
-image_tag="1.0.1"
+image_tag=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -16,7 +16,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       cat <<'EOF'
-Usage: build-push-acr.sh --acr-login-server <ACR_LOGIN_SERVER> [--image-tag 1.0.1]
+    Usage: build-push-acr.sh --acr-login-server <ACR_LOGIN_SERVER> --image-tag <IMAGE_TAG>
 EOF
       exit 0
       ;;
@@ -29,6 +29,11 @@ done
 
 if [[ -z "$acr_login_server" ]]; then
   echo "Missing --acr-login-server or ACR_LOGIN_SERVER." >&2
+  exit 1
+fi
+
+if [[ -z "$image_tag" ]]; then
+  echo "Missing --image-tag." >&2
   exit 1
 fi
 

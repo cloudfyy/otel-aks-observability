@@ -2,7 +2,8 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$AcrLoginServer,
 
-  [string]$ImageTag = "1.0.1"
+  [Parameter(Mandatory = $true)]
+  [string]$ImageTag
 )
 
 $ErrorActionPreference = "Stop"
