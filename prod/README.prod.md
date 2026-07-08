@@ -302,6 +302,34 @@ curl.exe -i --max-time 10 "http://$ingressAddress/dotnet/weatherforecast"
 curl.exe -i --max-time 10 "http://$ingressAddress/python/weatherforecast"
 ```
 
+#### Ingress 可访问，但 `/python/throw-custom-exception` 出现 302 并跳转到反诈页面
+
+现象：
+
+- 集群内访问 Python Service（如 `http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception`）返回 `500`，符合预期。
+- 从公网访问 Ingress 地址（如 `http://<INGRESS_IP>/python/throw-custom-exception`）出现 `302`，且响应头 `Location` 指向反诈站点或其他外部地址。
+
+结论：该跳转通常由公网链路侧注入（企业出口网关/运营商链路安全策略），不是应用代码、Pod、或 Ingress rewrite 规则主动返回。
+
+说明：
+
+- 这类公网重定向无法在应用代码中“关闭”。
+- 处理方式是网络侧治理（企业网络白名单、运营商误报申诉）或入口治理（域名备案、WAF/CDN 合规配置等）。
+
+生产架构下的建议排查顺序：
+
+```powershell
+# 1) 先确认 Ingress 路由在集群内是正常的（通过 ingress-nginx service）
+kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- curl -i --max-time 10 http://ingress-nginx-controller.ingress-nginx.svc.cluster.local/python/throw-custom-exception
+
+# 2) 再确认后端 Service 直连是 500（排除应用侧问题）
+kubectl run svc-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-prod -- curl -i --max-time 10 http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception
+
+# 3) 最后对公网地址做同一路径探测（若此处出现外部 302，基本可判定是公网链路侧重定向）
+$ingressAddress = kubectl get ingress -n apps-prod otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+curl.exe -i --max-time 10 ("http://{0}/python/throw-custom-exception" -f $ingressAddress)
+```
+
 #### Python 自动注入后 App Insights 没有请求、依赖或日志
 
 现象：应用接口可访问，Pod 日志中也能看到业务日志，但 App Insights 中按 Python 服务名查不到 `requests`、`dependencies` 或 `traces`。

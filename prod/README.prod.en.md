@@ -301,6 +301,34 @@ curl.exe -i --max-time 10 "http://$ingressAddress/dotnet/weatherforecast"
 curl.exe -i --max-time 10 "http://$ingressAddress/python/weatherforecast"
 ```
 
+#### Ingress is reachable, but `/python/throw-custom-exception` returns 302 and redirects to an anti-fraud page
+
+Symptom:
+
+- Accessing Python Service inside the cluster (for example, `http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception`) returns `500` as expected.
+- Accessing the same route through public Ingress (for example, `http://<INGRESS_IP>/python/throw-custom-exception`) returns `302`, and the `Location` header points to an anti-fraud site or another external URL.
+
+Finding: this redirect is typically injected by the public network path (enterprise egress security or ISP-side security policy), not returned by application code, pods, or Ingress rewrite rules.
+
+Important:
+
+- This class of redirect cannot be "turned off" in application code.
+- Mitigation is network-side governance (enterprise allowlisting, ISP false-positive appeal) or ingress-domain governance (registered domain, compliant WAF/CDN posture).
+
+Recommended checks in production ingress architecture:
+
+```powershell
+# 1) Verify ingress routing is correct inside the cluster (via ingress-nginx service)
+kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- curl -i --max-time 10 http://ingress-nginx-controller.ingress-nginx.svc.cluster.local/python/throw-custom-exception
+
+# 2) Verify backend service direct path still returns 500 (rules out app-side issues)
+kubectl run svc-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-prod -- curl -i --max-time 10 http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception
+
+# 3) Probe the same route from the public ingress IP
+$ingressAddress = kubectl get ingress -n apps-prod otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+curl.exe -i --max-time 10 ("http://{0}/python/throw-custom-exception" -f $ingressAddress)
+```
+
 #### Python auto-instrumentation produces no requests, dependencies, or logs in App Insights
 
 Symptom: the application endpoint works, and the business log appears in Pod logs, but App Insights shows no Python `requests`, `dependencies`, or `traces` for the service.
