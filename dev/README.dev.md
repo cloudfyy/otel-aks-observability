@@ -5,8 +5,6 @@
 ## 文件清单
 
 - otle-gateway-myvalues.yaml：当前开发主用的 Collector values（单 Collector）。
-- current-values.yaml：开发阶段历史 values 版本（可用于回滚/比对）。
-- myvalues.yaml：开发阶段自定义 values 样例（可用于试验参数）。
 - inst-crd-dotnet.yaml：.NET 自动注入 Instrumentation CRD。
 - inst-crd-python.yaml：Python 自动注入 Instrumentation CRD。
 - otelapidemo-dotnet.yaml：.NET 示例应用部署清单。
@@ -213,7 +211,7 @@ metadata:
 - 推荐做法是将应用 Service 收敛为 ClusterIP，通过 Ingress + 域名 + HTTPS 对外暴露，避免直接使用裸公网 IP。
 - 诊断时可先用集群内探测确认真实行为：`kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception"`。
 - 如果在 Azure Monitor 中看不到日志，先检查应用侧是否实际产生日志，以及 collector 的 sent/failed 计数器。
-- `current-values.yaml` 与 `myvalues.yaml` 作为历史/备用 values，不在默认命令中直接引用。
+- 开发环境默认仅使用 `otle-gateway-myvalues.yaml` 作为 Collector values 配置入口。
 - `otelapidemo-*.yaml` 中的镜像地址使用占位符 `<ACR_LOGIN_SERVER>`；建议通过 `./dev/deploy-apps.ps1` 或 `./dev/deploy-apps.sh` 注入真实 ACR，不要将真实 ACR 写回并提交到清单。
 - `otelapidemo-python.yaml` 目前仅作为示例模板，尚未完成完整验证，建议先在独立环境回归测试后再启用。
 - 为提升 CRD 复用性，建议将服务级 OTEL_SERVICE_NAME 放在应用 Deployment 中，而非共享 Instrumentation CRD。

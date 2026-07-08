@@ -5,8 +5,6 @@
 ## Files
 
 - otle-gateway-myvalues.yaml: primary Collector values for development (single-collector).
-- current-values.yaml: historical development values (rollback/comparison reference).
-- myvalues.yaml: custom development values sample for experiments.
 - inst-crd-dotnet.yaml: .NET auto-instrumentation CRD.
 - inst-crd-python.yaml: Python auto-instrumentation CRD.
 - otelapidemo-dotnet.yaml: .NET sample app manifest.
@@ -213,7 +211,7 @@ metadata:
 - Recommended exposure is ClusterIP services behind Ingress + domain + HTTPS, instead of direct bare public IP access.
 - For diagnosis, verify real app behavior from inside the cluster first: `kubectl run curl-check --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-dev -- sh -c "curl -s -o /dev/null -w 'dotnet:%{http_code}\n' http://otelapidemo.apps-dev.svc.cluster.local/WeatherForecast/throw-custom-exception; curl -s -o /dev/null -w 'python:%{http_code}\n' http://otelapidemo-python.apps-dev.svc.cluster.local/throw-custom-exception"`.
 - If logs are not visible in Azure Monitor, first verify app-side log generation and collector sent/failed counters.
-- `current-values.yaml` and `myvalues.yaml` are kept as historical/alternate values and are not referenced by default commands.
+- Development uses `otle-gateway-myvalues.yaml` as the only default Collector values entrypoint.
 - Image fields in `otelapidemo-*.yaml` use the `<ACR_LOGIN_SERVER>` placeholder; use `./dev/deploy-apps.ps1` or `./dev/deploy-apps.sh` to inject the real ACR during deployment, and do not write it back into committed manifests.
 - `otelapidemo-python.yaml` is currently an example template only and has not completed full validation; validate in an isolated environment before enabling.
 - For better CRD reuse, keep service-specific OTEL_SERVICE_NAME in application Deployment, not in shared Instrumentation CRD.
