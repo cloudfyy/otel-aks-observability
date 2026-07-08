@@ -276,3 +276,28 @@ traces
 | summarize count() by service, env
 | order by count_ desc
 ```
+
+```kusto
+// 5) 查询最近 1 小时的异常（dev）
+exceptions
+| where timestamp > ago(1h)
+| where cloud_RoleName has "apps-dev"
+  or tostring(customDimensions["service.namespace"]) =~ "apps-dev"
+| project timestamp, cloud_RoleName, type, outerMessage, problemId, operation_Id
+| order by timestamp desc
+```
+
+```kusto
+// 6) 关联异常接口请求与异常记录（dev）
+let Ex = exceptions
+| where timestamp > ago(1h)
+| project exTime=timestamp, operation_Id, exType=type, exMsg=outerMessage, exRole=cloud_RoleName;
+requests
+| where timestamp > ago(1h)
+| where url has "throw-custom-exception"
+| where cloud_RoleName has "apps-dev"
+  or tostring(customDimensions["service.namespace"]) =~ "apps-dev"
+| project reqTime=timestamp, operation_Id, reqRole=cloud_RoleName, name, url, resultCode, success
+| join kind=leftouter Ex on operation_Id
+| order by reqTime desc
+```

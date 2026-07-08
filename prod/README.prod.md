@@ -385,6 +385,42 @@ union requests, dependencies, traces
 | order by timestamp desc
 ```
 
+### App Insights 异常查询 KQL（30 分钟）
+
+- 建议先触发一轮异常接口（如 `/dotnet/throw-custom-exception`、`/python/throw-custom-exception`），再等待 3-10 分钟查询。
+- 先看 `exceptions` 总览，再与 `requests` 按 `operation_Id` 关联排查。
+
+```kusto
+// 1) 最近 30 分钟异常总览（prod）
+exceptions
+| where timestamp > ago(30m)
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+  or (
+    tostring(customDimensions["service.namespace"]) =~ "apps-prod"
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+  )
+| project timestamp, cloud_RoleName, type, outerMessage, problemId, operation_Id
+| order by timestamp desc
+```
+
+```kusto
+// 2) 关联异常接口请求与异常记录（prod）
+let Ex = exceptions
+| where timestamp > ago(30m)
+| project exTime=timestamp, operation_Id, exType=type, exMsg=outerMessage, exRole=cloud_RoleName;
+requests
+| where timestamp > ago(30m)
+| where url has "throw-custom-exception"
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+  or (
+    tostring(customDimensions["service.namespace"]) =~ "apps-prod"
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+  )
+| project reqTime=timestamp, operation_Id, reqRole=cloud_RoleName, name, url, resultCode, success
+| join kind=leftouter Ex on operation_Id
+| order by reqTime desc
+```
+
 ### App Insights Metrics 核验 KQL（30 分钟）
 
 - OTel metrics 在 classic App Insights 中通常进入 `customMetrics` 表；workspace-based App Insights 中可能是 `AppMetrics` 表。下面的查询使用 `union isfuzzy=true` 同时兼容两种表。

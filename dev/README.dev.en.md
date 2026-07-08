@@ -276,3 +276,28 @@ traces
 | summarize count() by service, env
 | order by count_ desc
 ```
+
+```kusto
+// 5) Query exceptions in the last hour (dev)
+exceptions
+| where timestamp > ago(1h)
+| where cloud_RoleName has "apps-dev"
+  or tostring(customDimensions["service.namespace"]) =~ "apps-dev"
+| project timestamp, cloud_RoleName, type, outerMessage, problemId, operation_Id
+| order by timestamp desc
+```
+
+```kusto
+// 6) Correlate exception-endpoint requests with exception records (dev)
+let Ex = exceptions
+| where timestamp > ago(1h)
+| project exTime=timestamp, operation_Id, exType=type, exMsg=outerMessage, exRole=cloud_RoleName;
+requests
+| where timestamp > ago(1h)
+| where url has "throw-custom-exception"
+| where cloud_RoleName has "apps-dev"
+  or tostring(customDimensions["service.namespace"]) =~ "apps-dev"
+| project reqTime=timestamp, operation_Id, reqRole=cloud_RoleName, name, url, resultCode, success
+| join kind=leftouter Ex on operation_Id
+| order by reqTime desc
+```

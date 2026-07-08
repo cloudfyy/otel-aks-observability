@@ -384,6 +384,42 @@ union requests, dependencies, traces
 | order by timestamp desc
 ```
 
+### App Insights Exception Query KQL (30m)
+
+- Trigger one round of exception endpoints first (for example, `/dotnet/throw-custom-exception` and `/python/throw-custom-exception`), then wait 3-10 minutes before querying.
+- Review `exceptions` first, then correlate with `requests` by `operation_Id`.
+
+```kusto
+// 1) Exception overview in the last 30 minutes (prod)
+exceptions
+| where timestamp > ago(30m)
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+  or (
+    tostring(customDimensions["service.namespace"]) =~ "apps-prod"
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+  )
+| project timestamp, cloud_RoleName, type, outerMessage, problemId, operation_Id
+| order by timestamp desc
+```
+
+```kusto
+// 2) Correlate exception-endpoint requests with exception records (prod)
+let Ex = exceptions
+| where timestamp > ago(30m)
+| project exTime=timestamp, operation_Id, exType=type, exMsg=outerMessage, exRole=cloud_RoleName;
+requests
+| where timestamp > ago(30m)
+| where url has "throw-custom-exception"
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+  or (
+    tostring(customDimensions["service.namespace"]) =~ "apps-prod"
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+  )
+| project reqTime=timestamp, operation_Id, reqRole=cloud_RoleName, name, url, resultCode, success
+| join kind=leftouter Ex on operation_Id
+| order by reqTime desc
+```
+
 ### App Insights Metrics Verification KQL (30m)
 
 - OTel metrics usually land in the `customMetrics` table for classic App Insights. Workspace-based App Insights may expose the same data through `AppMetrics`. The queries below use `union isfuzzy=true` to support both schemas.
