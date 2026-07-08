@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: otel-api-routes
+  labels:
+    app: otel-api-routes
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /dotnet(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: otelapidemo
+                port:
+                  name: http
+          - path: /python(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: otelapidemo-python
+                port:
+                  name: http

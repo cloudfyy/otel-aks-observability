@@ -3,15 +3,23 @@ import './App.css'
 
 const refreshOptions = [5, 10, 30, 60]
 
+function resolveApiBaseUrl(envValue, developmentDefault, productionDefault) {
+  if (envValue) {
+    return envValue
+  }
+
+  return import.meta.env.DEV ? developmentDefault : productionDefault
+}
+
 const sources = {
   dotnet: {
     label: '.NET API',
-    endpoint: `${import.meta.env.VITE_DOTNET_API_BASE_URL ?? 'http://localhost:5041'}/weatherforecast`,
+    endpoint: `${resolveApiBaseUrl(import.meta.env.VITE_DOTNET_API_BASE_URL, 'http://localhost:5041', '/dotnet')}/weatherforecast`,
     accent: 'dotnet',
   },
   python: {
     label: 'Python API',
-    endpoint: `${import.meta.env.VITE_PYTHON_API_BASE_URL ?? 'http://localhost:8000'}/weatherforecast`,
+    endpoint: `${resolveApiBaseUrl(import.meta.env.VITE_PYTHON_API_BASE_URL, 'http://localhost:8000', '/python')}/weatherforecast`,
     accent: 'python',
   },
 }

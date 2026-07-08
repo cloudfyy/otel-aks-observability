@@ -52,6 +52,6 @@ if [[ -z "$acr_login_server" ]]; then
   exit 1
 fi
 
-cat "$script_dir/otelapidemo-dotnet.yaml" "$script_dir/otelapidemo-python.yaml" |
+cat "$script_dir/otelapidemo-dotnet.yaml" "$script_dir/otelapidemo-python.yaml" "$script_dir/otel-ui.yaml" "$script_dir/otelapidemo-ingress.yaml" "$script_dir/otel-ui-ingress.yaml" |
   sed "s|<ACR_LOGIN_SERVER>|$acr_login_server|g" |
   kubectl apply -n "$namespace" -f -

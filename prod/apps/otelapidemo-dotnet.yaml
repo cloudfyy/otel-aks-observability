@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: otelapidemo
-          image: <ACR_LOGIN_SERVER>/otelapidemo:1.0.3
+          image: <ACR_LOGIN_SERVER>/otelapidemo:1.0.4
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -33,7 +33,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.labels['app']
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: service.namespace=apps-prod,service.version=1.0.3,deployment.environment.name=prod
+              value: service.namespace=apps-prod,service.version=1.0.4,deployment.environment.name=prod
           resources:
             requests:
               cpu: 100m

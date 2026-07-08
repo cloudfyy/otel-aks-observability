@@ -1,16 +1,41 @@
-# React + Vite
+# otel-ui
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React dashboard that calls the `.NET` and `Python` sample APIs and displays their live weather responses side by side.
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+Defaults in development:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `.NET API`: `http://localhost:5041/weatherforecast`
+- `Python API`: `http://localhost:8000/weatherforecast`
 
-## Expanding the Oxlint configuration
+You can override them with:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- `VITE_DOTNET_API_BASE_URL`
+- `VITE_PYTHON_API_BASE_URL`
+
+## Production build behavior
+
+When `VITE_DOTNET_API_BASE_URL` and `VITE_PYTHON_API_BASE_URL` are not set, the production build targets ingress-relative paths:
+
+- `.NET API`: `/dotnet/weatherforecast`
+- `Python API`: `/python/weatherforecast`
+
+This matches the AKS ingress manifests in `dev/` and `prod/apps/`.
+
+## Container image
+
+Build and push to ACR:
+
+```powershell
+./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.1
+```
+
+```bash
+./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.1
+```

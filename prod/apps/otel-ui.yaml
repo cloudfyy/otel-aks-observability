@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-ui
+  labels:
+    app: otel-ui
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: otel-ui
+  template:
+    metadata:
+      labels:
+        app: otel-ui
+    spec:
+      containers:
+        - name: otel-ui
+          image: <ACR_LOGIN_SERVER>/otel-ui:1.0.1
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 101
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-ui
+  labels:
+    app: otel-ui
+spec:
+  type: ClusterIP
+  selector:
+    app: otel-ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

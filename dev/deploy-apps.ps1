@@ -26,7 +26,10 @@ if (-not $AcrLoginServer) {
 
 $manifestFiles = @(
   "otelapidemo-dotnet.yaml",
-  "otelapidemo-python.yaml"
+  "otelapidemo-python.yaml",
+  "otel-ui.yaml",
+  "otelapidemo-ingress.yaml",
+  "otel-ui-ingress.yaml"
 )
 
 $rendered = ($manifestFiles | ForEach-Object {
