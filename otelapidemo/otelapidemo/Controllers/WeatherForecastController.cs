@@ -39,5 +39,26 @@ namespace otelapidemo.Controllers
             _logger.LogWarning(".NET custom exception test endpoint called");
             throw new CustomTestException("This is a .NET custom exception for testing.");
         }
+
+        [HttpGet("throw-and-catch-exception")]
+        public IActionResult ThrowAndCatchException()
+        {
+            try
+            {
+                throw new CustomTestException("This exception is thrown and handled in .NET test endpoint.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Handled Exception] {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
+                _logger.LogWarning(ex, ".NET handled exception test endpoint caught an exception");
+            }
+
+            return Ok(new
+            {
+                message = "Exception was thrown, caught, and printed to console.",
+                handled = true
+            });
+        }
     }
 }

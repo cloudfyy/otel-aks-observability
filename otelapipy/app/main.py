@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 import logging
 import random
+import traceback
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -57,3 +58,20 @@ def get_weather_forecast() -> list[WeatherForecast]:
 def throw_custom_exception() -> None:
     logger.warning("Python custom exception test endpoint called")
     raise CustomTestException("This is a Python custom exception for testing.")
+
+
+@app.get("/throw-and-catch-exception")
+def throw_and_catch_exception() -> dict[str, object]:
+    try:
+        raise CustomTestException(
+            "This exception is thrown and handled in Python test endpoint."
+        )
+    except Exception as ex:
+        print(f"[Handled Exception] {type(ex).__name__}: {ex}")
+        print(traceback.format_exc())
+        logger.warning("Python handled exception test endpoint caught an exception")
+
+    return {
+        "message": "Exception was thrown, caught, and printed to console.",
+        "handled": True,
+    }

@@ -1,4 +1,4 @@
-mode: deployment
+mode: daemonset
 image:
   repository: otel/opentelemetry-collector-contrib
 
@@ -16,6 +16,17 @@ ports:
   zipkin:
     enabled: false
 
+extraVolumes:
+  - name: varlogpods
+    hostPath:
+      path: /var/log/pods
+      type: Directory
+
+extraVolumeMounts:
+  - name: varlogpods
+    mountPath: /var/log/pods
+    readOnly: true
+
 config:
   receivers:
     otlp:
@@ -24,6 +35,30 @@ config:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
+    filelog:
+      include:
+        - /var/log/pods/*/*/*.log
+      exclude:
+        - /var/log/pods/observability_*/*/*.log
+      start_at: end
+      include_file_path: true
+      operators:
+        - type: container
+        - type: regex_parser
+          parse_from: attributes["log.file.path"]
+          regex: '^/var/log/pods/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<pod_uid>[0-9a-fA-F-]+)/(?P<container_name>[^/]+)/(?P<restart_count>\d+)\.log$'
+        - type: move
+          from: attributes.namespace
+          to: resource["k8s.namespace.name"]
+        - type: move
+          from: attributes.pod_name
+          to: resource["k8s.pod.name"]
+        - type: move
+          from: attributes.pod_uid
+          to: resource["k8s.pod.uid"]
+        - type: move
+          from: attributes.container_name
+          to: resource["k8s.container.name"]
 
   processors:
     memory_limiter:
@@ -33,6 +68,15 @@ config:
     k8sattributes:
       auth_type: serviceAccount
       passthrough: false
+      pod_association:
+        - sources:
+            - from: resource_attribute
+              name: k8s.pod.uid
+        - sources:
+            - from: resource_attribute
+              name: k8s.pod.name
+            - from: resource_attribute
+              name: k8s.namespace.name
       extract:
         metadata:
           - k8s.namespace.name
@@ -60,6 +104,6 @@ config:
         processors: [memory_limiter, k8sattributes, batch]
         exporters: [debug, azuremonitor]
       logs:
-        receivers: [otlp]
+        receivers: [otlp, filelog]
         processors: [memory_limiter, k8sattributes, batch]
-        exporters: [debug, azuremonitor]
+        exporters: [azuremonitor]
