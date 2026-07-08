@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: otelapidemo-python
-          image: <ACR_LOGIN_SERVER>/otelapipy:latest
+          image: <ACR_LOGIN_SERVER>/otelapipy:1.0.1
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

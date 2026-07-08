@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using otelapidemo.Exceptions;
 
 namespace otelapidemo.Controllers
 {
@@ -30,6 +31,13 @@ namespace otelapidemo.Controllers
                 Summary = Summaries[Random.Shared.Next(Summaries.Length)]
             })
             .ToArray();
+        }
+
+        [HttpGet("throw-custom-exception")]
+        public IActionResult ThrowCustomException()
+        {
+            _logger.LogWarning(".NET custom exception test endpoint called");
+            throw new CustomTestException("This is a .NET custom exception for testing.");
         }
     }
 }

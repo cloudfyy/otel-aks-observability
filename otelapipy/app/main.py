@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="otelapi-py", version="1.0.0")
+app = FastAPI(title="otelapi-py", version="1.0.1")
 logger = logging.getLogger("otelapi-py")
 
 SUMMARIES = [
@@ -30,6 +30,10 @@ class WeatherForecast(BaseModel):
     summary: str
 
 
+class CustomTestException(Exception):
+    """Custom exception used by test endpoint."""
+
+
 @app.get("/weatherforecast", response_model=list[WeatherForecast])
 def get_weather_forecast() -> list[WeatherForecast]:
     logger.info("Python weather forecast requested")
@@ -47,3 +51,9 @@ def get_weather_forecast() -> list[WeatherForecast]:
         )
 
     return forecasts
+
+
+@app.get("/throw-custom-exception")
+def throw_custom_exception() -> None:
+    logger.warning("Python custom exception test endpoint called")
+    raise CustomTestException("This is a Python custom exception for testing.")
