@@ -1,0 +1,159 @@
+.app-shell {
+  display: grid;
+  gap: 2rem;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.7fr 0.9fr;
+  gap: 1.5rem;
+  align-items: end;
+}
+
+.hero-copy {
+  max-width: 42rem;
+  font-size: 1.05rem;
+}
+
+.hero-meta {
+  padding: 1.25rem;
+  border-radius: 1.5rem;
+  background: rgba(253, 246, 227, 0.78);
+  border: 1px solid rgba(53, 44, 28, 0.1);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.refresh-controls {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 0.4rem;
+}
+
+.refresh-toggle,
+.refresh-interval {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  font-size: 0.95rem;
+  color: var(--heading-color);
+}
+
+.refresh-toggle input,
+.refresh-interval select {
+  accent-color: #2157d5;
+}
+
+.refresh-interval select {
+  min-width: 7.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(53, 44, 28, 0.15);
+  background: rgba(255, 255, 255, 0.9);
+  font: inherit;
+  color: var(--heading-color);
+}
+
+.refresh-interval select:disabled {
+  opacity: 0.55;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.panel {
+  border-radius: 1.75rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(53, 44, 28, 0.1);
+  background: rgba(255, 252, 245, 0.9);
+  box-shadow: 0 24px 60px rgba(63, 48, 18, 0.08);
+}
+
+.panel-dotnet {
+  background: linear-gradient(180deg, rgba(245, 249, 255, 0.96), rgba(231, 240, 255, 0.92));
+}
+
+.panel-python {
+  background: linear-gradient(180deg, rgba(255, 251, 237, 0.96), rgba(255, 243, 203, 0.92));
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 1.5rem;
+}
+
+.panel-header code {
+  max-width: 14rem;
+  overflow-wrap: anywhere;
+}
+
+.forecast-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.forecast-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(53, 44, 28, 0.08);
+}
+
+.forecast-date {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.forecast-summary {
+  font-family: var(--heading);
+  font-size: 1.35rem;
+  color: var(--heading-color);
+}
+
+.forecast-temp {
+  font-family: var(--mono);
+  color: var(--heading-color);
+}
+
+.status {
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.status.error {
+  color: #9f2f1f;
+  background: rgba(255, 230, 223, 0.95);
+}
+
+@media (max-width: 900px) {
+  .hero,
+  .panel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-header {
+    flex-direction: column;
+  }
+
+  .panel-header code {
+    max-width: 100%;
+  }
+}

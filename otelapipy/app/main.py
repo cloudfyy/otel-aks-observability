@@ -2,13 +2,25 @@ from datetime import date, timedelta
 import logging
 import random
 import traceback
+import os
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="otelapi-py", version="1.0.1")
 logger = logging.getLogger("otelapi-py")
+
+allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in allowed_origins.split(",") if origin.strip()],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 SUMMARIES = [
     "Freezing",
