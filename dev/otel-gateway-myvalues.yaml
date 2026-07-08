@@ -36,7 +36,6 @@ config:
         http:
           endpoint: 0.0.0.0:4318
     file_log:
-      file_format: container
       include:
         - /var/log/pods/*/*/*.log
       exclude:
