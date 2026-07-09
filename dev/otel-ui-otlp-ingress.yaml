@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: otel-ui-otlp
+  labels:
+    app: otel-ui
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /otlp(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: otel-ui-otlp-proxy
+                port:
+                  name: otlp-http

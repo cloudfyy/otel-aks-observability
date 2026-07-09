@@ -14,6 +14,41 @@ Main capabilities:
 - Production hardening: provides agent + gateway layered architecture, gateway tail sampling, trace ID routing, mTLS certificates, network policies, and scaling/alert guidance
 - Operations governance: provides version ledger, upgrade pre-checks, and validation commands
 
+## Architecture Diagram
+
+```mermaid
+flowchart LR
+  subgraph Browser[Browser / otel-ui]
+    UI[React UI]
+    Bootstrap[Telemetry bootstrap\nfetch/xhr auto-instrumentation]
+    UI --> Bootstrap
+  end
+
+  subgraph Apps[apps-dev / apps-prod]
+    DotNet[.NET API]
+    Python[Python API]
+    UiSvc[otel-ui Service]
+    ProxySvc[otel-ui-otlp-proxy Service\nExternalName]
+    UiIngress[otel-ui Ingress]
+    OtlpIngress[otel-ui-otlp Ingress]
+  end
+
+  subgraph Obs[observability]
+    Collector[Collector / Agent]
+    Azure[Azure Monitor / App Insights]
+  end
+
+  UI --> UiIngress --> UiSvc
+  Bootstrap --> OtlpIngress --> ProxySvc --> Collector
+  UiIngress --> DotNet
+  UiIngress --> Python
+  DotNet --> Collector
+  Python --> Collector
+  Collector --> Azure
+```
+
+Browser OTLP goes through the same-namespace `otel-ui-otlp-proxy` Service and then reaches the Collector/Agent in the `observability` namespace. This keeps the browser path same-origin while working within Kubernetes ingress scoping rules.
+
 ## Directory Structure
 
 - [dev/](dev/)

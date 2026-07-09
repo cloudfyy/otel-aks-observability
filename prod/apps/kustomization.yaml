@@ -4,3 +4,5 @@ resources:
   - otel-ui.yaml
   - otelapidemo-ingress.prod.yaml
   - otel-ui-ingress.prod.yaml
+  - otel-ui-otlp-service.yaml
+  - otel-ui-otlp-ingress.prod.yaml

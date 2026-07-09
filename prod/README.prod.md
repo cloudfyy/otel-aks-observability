@@ -20,6 +20,8 @@
 - apps/kustomization.yaml：生产示例应用 Kustomize 入口（替换 ACR 镜像地址）。
 - apps/otelapidemo-ingress.prod.yaml：生产 API 路由 Ingress（`/dotnet/*` 与 `/python/*`）。
 - apps/otel-ui-ingress.prod.yaml：生产 UI 根路径 Ingress（`/`）。
+- apps/otel-ui-otlp-ingress.prod.yaml：生产 UI 同源 OTLP 入口（`/otlp/*`，转发到 agent 4318）。
+- apps/otel-ui-otlp-service.yaml：同 namespace OTLP 代理 Service（ExternalName，指向 `observability` 中的 agent）。
 - alerts-kql.prod.md：生产告警与 KQL 建议。
 - appinsights-dashboard.prod.md：Application Insights 仪表盘（程序运行 + OTel 常用指标）建议。
 - appinsights-dashboard.prod.en.md：Application Insights dashboard 英文说明。
@@ -50,7 +52,7 @@
 9. 应用 Instrumentation CRD。
 10. 部署 `.NET`、Python 与 React UI 示例应用（Service 均使用 `ClusterIP`）。
 11. 应用 API 路由 Ingress 与 UI 根路径 Ingress。
-12. 验证统一入口、基础状态与 Collector 指标。
+12. 验证统一入口、`/otlp/v1/traces` 通过 `otel-ui-otlp-proxy` 转发、基础状态与 Collector 指标。
 
 ## 命令（bash）
 
@@ -230,7 +232,7 @@ metadata:
 - 生产 trace 使用 gateway tail sampling：应用侧 `always_on` 全量上报，gateway 保留错误 trace、超过 1000ms 的慢 trace，并对其余正常 trace 做 10% 概率采样。
 - 当前 tail sampling 采用方案 B：gateway 保持多副本高可用，agent 的 traces pipeline 使用 `load_balancing/gateway` exporter 按 trace ID 路由到 headless Service 暴露的 gateway Pod，确保同一条 trace 的 span 进入同一个 tail sampler。
 - Collector 会统一补充资源属性：`deployment.environment.name=prod`、`cloud.provider=azure`、`cloud.platform=azure_aks`、`k8s.cluster.name=<AKS_CLUSTER_NAME>`，并在未显式设置时从 `k8s.namespace.name` 补充 `service.namespace`。
-- 示例应用会显式设置 `service.namespace=apps-prod`；当前示例镜像版本基线为 `.NET`=`1.0.4`、Python=`1.0.4`、UI=`1.0.1`。生产应用建议将 `service.version` 替换为真实发布版本或镜像版本。
+- 示例应用会显式设置 `service.namespace=apps-prod`；当前示例镜像版本基线为 `.NET`=`1.0.4`、Python=`1.0.4`、UI=`1.0.3`。生产应用建议将 `service.version` 替换为真实发布版本或镜像版本。
 - 应用通过服务 DNS `otel-agent-opentelemetry-collector.observability.svc.cluster.local:4317/4318` 上报到 agent。agent 的 traces pipeline 通过 `load_balancing/gateway` 和 gateway headless Service 按 trace ID 路由；metrics/logs pipeline 通过 `otlp_grpc/gateway` 发送到普通 gateway ClusterIP Service。
 - 生产示例应用不直接暴露 `LoadBalancer` Service；`.NET`、Python 与 UI Service 均为 `ClusterIP`。
 - 对外入口保持统一，但拆成两个 Ingress 资源：`apps/otel-ui-ingress.prod.yaml` 提供 `/`，`apps/otelapidemo-ingress.prod.yaml` 提供 `/dotnet/*` 与 `/python/*`。拆分的原因是 API Ingress 依赖 NGINX rewrite 注解，而 UI 根路径不应复用这组 rewrite 规则。

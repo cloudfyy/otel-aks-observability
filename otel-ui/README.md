@@ -13,6 +13,7 @@ Defaults in development:
 
 - `.NET API`: `http://localhost:5041/weatherforecast`
 - `Python API`: `http://localhost:8000/weatherforecast`
+- OTEL trace export: `/otlp/v1/traces` proxied by Vite to `http://localhost:4318`
 
 You can override them with:
 
@@ -28,14 +29,20 @@ When `VITE_DOTNET_API_BASE_URL` and `VITE_PYTHON_API_BASE_URL` are not set, the 
 
 This matches the AKS ingress manifests in `dev/` and `prod/apps/`.
 
+The UI also emits browser spans through the same-origin `/otlp/v1/traces` endpoint. In AKS, that path is reverse-proxied to the Collector by the dedicated OTLP ingress manifests.
+
+Optional OTEL env var:
+
+- `VITE_OTEL_EXPORTER_OTLP_ENDPOINT`: override the browser trace export endpoint if needed
+
 ## Container image
 
 Build and push to ACR:
 
 ```powershell
-./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.1
+./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.3
 ```
 
 ```bash
-./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.1
+./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.3
 ```

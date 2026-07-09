@@ -29,7 +29,9 @@ $manifestFiles = @(
   "otelapidemo-python.yaml",
   "otel-ui.yaml",
   "otelapidemo-ingress.yaml",
-  "otel-ui-ingress.yaml"
+  "otel-ui-ingress.yaml",
+  "otel-ui-otlp-service.yaml",
+  "otel-ui-otlp-ingress.yaml"
 )
 
 $rendered = ($manifestFiles | ForEach-Object {

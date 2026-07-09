@@ -12,9 +12,46 @@
 - otel-ui.yaml: React UI deployment manifest.
 - otelapidemo-ingress.yaml: API ingress for `/dotnet/*` and `/python/*`.
 - otel-ui-ingress.yaml: UI ingress for `/`.
+- otel-ui-otlp-ingress.yaml: same-origin OTLP ingress for `/otlp/*`, forwarded to Collector 4318.
+- otel-ui-otlp-service.yaml: same-namespace OTLP proxy Service (ExternalName, pointing to the Collector in `observability`).
 - certmgr-test.yaml: cert-manager test manifest for development validation.
 - README.dev.md: Chinese development deployment guide.
 - README.dev.en.md: this English development deployment guide.
+
+## Architecture Diagram
+
+```mermaid
+flowchart LR
+  subgraph Browser[Browser / otel-ui]
+    UI[React UI]
+    Bootstrap[Telemetry bootstrap\nfetch/xhr auto-instrumentation]
+    UI --> Bootstrap
+  end
+
+  subgraph Apps[apps-dev]
+    DotNet[.NET API]
+    Python[Python API]
+    UiSvc[otel-ui Service]
+    ProxySvc[otel-ui-otlp-proxy Service\nExternalName]
+    UiIngress[otel-ui Ingress]
+    OtlpIngress[otel-ui-otlp Ingress]
+  end
+
+  subgraph Obs[observability]
+    Collector[Collector]
+    Azure[Azure Monitor / App Insights]
+  end
+
+  UI --> UiIngress --> UiSvc
+  Bootstrap --> OtlpIngress --> ProxySvc --> Collector
+  UiIngress --> DotNet
+  UiIngress --> Python
+  DotNet --> Collector
+  Python --> Collector
+  Collector --> Azure
+```
+
+Browser OTLP uses the same-namespace `otel-ui-otlp-proxy` Service to reach the Collector in `observability`, which keeps the browser endpoint same-origin while respecting Kubernetes ingress scoping.
 
 ## Prerequisites
 

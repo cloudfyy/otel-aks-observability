@@ -12,9 +12,46 @@
 - otel-ui.yaml：React UI 部署清单。
 - otelapidemo-ingress.yaml：API 路由 Ingress（`/dotnet/*`、`/python/*`）。
 - otel-ui-ingress.yaml：UI 根路径 Ingress（`/`）。
+- otel-ui-otlp-ingress.yaml：UI 同源 OTLP 入口（`/otlp/*`，转发到 Collector 4318）。
+- otel-ui-otlp-service.yaml：同 namespace OTLP 代理 Service（ExternalName，指向 `observability` 中的 Collector）。
 - certmgr-test.yaml：cert-manager 功能测试清单（开发验证用途）。
 - README.dev.md：当前中文开发部署说明。
 - README.dev.en.md：英文开发部署说明。
+
+## 架构图
+
+```mermaid
+flowchart LR
+  subgraph Browser[Browser / otel-ui]
+    UI[React UI]
+    Bootstrap[Telemetry bootstrap\nfetch/xhr 自动埋点]
+    UI --> Bootstrap
+  end
+
+  subgraph Apps[apps-dev]
+    DotNet[.NET API]
+    Python[Python API]
+    UiSvc[otel-ui Service]
+    ProxySvc[otel-ui-otlp-proxy Service\nExternalName]
+    UiIngress[otel-ui Ingress]
+    OtlpIngress[otel-ui-otlp Ingress]
+  end
+
+  subgraph Obs[observability]
+    Collector[Collector]
+    Azure[Azure Monitor / App Insights]
+  end
+
+  UI --> UiIngress --> UiSvc
+  Bootstrap --> OtlpIngress --> ProxySvc --> Collector
+  UiIngress --> DotNet
+  UiIngress --> Python
+  DotNet --> Collector
+  Python --> Collector
+  Collector --> Azure
+```
+
+说明：浏览器端 OTLP 通过同 namespace 的 `otel-ui-otlp-proxy` 代理 Service 转发到 `observability` 命名空间里的 Collector，这样既满足 Ingress backend 的作用域限制，也保持了同源 `/otlp/*` 入口。
 
 ## 前置条件
 
@@ -33,7 +70,7 @@
 6. 应用 Instrumentation CRD。
 7. 检查应用清单中的 `<ACR_LOGIN_SERVER>` 是否仍为占位符，并先替换为真实值。
 8. 部署 `.NET`、Python 与 React UI 示例应用。
-9. 获取 UI Ingress 地址，并通过统一入口验证 `/`、`/dotnet/*`、`/python/*`。
+9. 获取 UI Ingress 地址，并通过统一入口验证 `/`、`/dotnet/*`、`/python/*`，同时确认 `/otlp/v1/traces` 通过 `otel-ui-otlp-proxy` 正常转发。
 10. 分别对 `.NET` 与 Python 示例应用进行一轮压力测试，触发 traces、logs 与 metrics。
 11. 验证 Collector 管道计数器、Kubernetes 资源属性与遥测上报。
 
@@ -258,7 +295,7 @@ metadata:
 - 当前 dev Collector 已启用 `file_log` 接收器采集节点上的容器日志文件（`/var/log/pods/.../*.log`）。
 - 当前开发环境通过统一 Ingress 对外暴露：`/` 对应 React UI，`/dotnet/*` 转发到 `.NET` API，`/python/*` 转发到 Python API。
 - `dev/deploy-apps.ps1` 与 `dev/deploy-apps.sh` 会同时部署 `.NET`、Python、React UI，以及两个 Ingress 资源。
-- 当前开发示例镜像版本基线：`.NET`=`1.0.4`，Python=`1.0.4`，UI=`1.0.1`。
+- 当前开发示例镜像版本基线：`.NET`=`1.0.4`，Python=`1.0.4`，UI=`1.0.3`。
 - 压力测试命令现在同时覆盖 `.NET` 与 Python 示例应用的 `/weatherforecast` 接口，并统一通过 Ingress 入口访问。
 - 异常接口压测命令已内联在本文档第 9c 与 9d 步骤中：`throw-custom-exception` 预期返回 500，`throw-and-catch-exception` 预期返回 200。
 - 若 Python 公网地址压测出现 302/200 混合，且响应头中出现外部跳转，这通常是公网链路侧重定向，不是应用代码或 AKS Pod 本身返回。
