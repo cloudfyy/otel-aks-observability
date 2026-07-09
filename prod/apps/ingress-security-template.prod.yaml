@@ -1,0 +1,37 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: otelapidemo
+  namespace: apps-prod
+  annotations:
+    # Basic throttling for burst scanner traffic.
+    nginx.ingress.kubernetes.io/limit-rps: "20"
+    nginx.ingress.kubernetes.io/limit-rpm: "600"
+    nginx.ingress.kubernetes.io/limit-connections: "20"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
+
+    # Optional: block common scanner payload paths.
+    # Requires ingress-nginx controller setting: allow-snippet-annotations=true
+    nginx.ingress.kubernetes.io/server-snippet: |
+      if ($request_uri ~* "(\\.php|\\.jsp|/wp-|/wordpress|/phpmyadmin|javax\\.faces|/vendor/|/\\.env)") {
+        return 403;
+      }
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /dotnet(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: otelapidemo
+                port:
+                  name: http
+          - path: /python(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: otelapidemo-python
+                port:
+                  name: http

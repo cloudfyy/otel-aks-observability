@@ -1,6 +1,5 @@
 import { trace } from '@opentelemetry/api'
 import { getWebAutoInstrumentations } from '@opentelemetry/auto-instrumentations-web'
-import { ZoneContextManager } from '@opentelemetry/context-zone'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { registerInstrumentations } from '@opentelemetry/instrumentation'
 import { Resource } from '@opentelemetry/resources'
@@ -25,15 +24,13 @@ function createTelemetryState() {
   const provider = new WebTracerProvider({
     resource: new Resource({
       'service.name': 'otel-ui',
-      'service.version': '1.0.3',
+      'service.version': '1.0.4',
       'deployment.environment.name': resolveEnvironmentName(),
     }),
     spanProcessors: [new BatchSpanProcessor(exporter)],
   })
 
-  provider.register({
-    contextManager: new ZoneContextManager(),
-  })
+  provider.register()
 
   registerInstrumentations({
     instrumentations: [

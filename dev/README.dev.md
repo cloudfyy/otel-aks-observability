@@ -14,6 +14,7 @@
 - otel-ui-ingress.yaml：UI 根路径 Ingress（`/`）。
 - otel-ui-otlp-ingress.yaml：UI 同源 OTLP 入口（`/otlp/*`，转发到 Collector 4318）。
 - otel-ui-otlp-service.yaml：同 namespace OTLP 代理 Service（ExternalName，指向 `observability` 中的 Collector）。
+- ingress-security-template.dev.yaml：Ingress 安全模板（限流 + 常见扫描路径拦截）。
 - certmgr-test.yaml：cert-manager 功能测试清单（开发验证用途）。
 - README.dev.md：当前中文开发部署说明。
 - README.dev.en.md：英文开发部署说明。
@@ -73,6 +74,19 @@ flowchart LR
 9. 获取 UI Ingress 地址，并通过统一入口验证 `/`、`/dotnet/*`、`/python/*`，同时确认 `/otlp/v1/traces` 通过 `otel-ui-otlp-proxy` 正常转发。
 10. 分别对 `.NET` 与 Python 示例应用进行一轮压力测试，触发 traces、logs 与 metrics。
 11. 验证 Collector 管道计数器、Kubernetes 资源属性与遥测上报。
+
+## Ingress 安全模板（可选）
+
+当公网出现大量 `.php`、`.jsp`、`javax.faces` 等扫描流量时，可按需应用模板：
+
+```bash
+kubectl apply -f ./dev/ingress-security-template.dev.yaml
+```
+
+说明：
+
+- 模板默认包含 NGINX 限流注解（`limit-rps`、`limit-rpm`、`limit-connections`）。
+- 模板中的 `server-snippet` 用于拦截常见扫描路径；若集群未开启 `allow-snippet-annotations=true`，请先移除该段再应用。
 
 ## 命令（bash）
 

@@ -22,6 +22,7 @@
 - apps/otel-ui-ingress.prod.yaml：生产 UI 根路径 Ingress（`/`）。
 - apps/otel-ui-otlp-ingress.prod.yaml：生产 UI 同源 OTLP 入口（`/otlp/*`，转发到 agent 4318）。
 - apps/otel-ui-otlp-service.yaml：同 namespace OTLP 代理 Service（ExternalName，指向 `observability` 中的 agent）。
+- apps/ingress-security-template.prod.yaml：Ingress 安全模板（限流 + 常见扫描路径拦截）。
 - alerts-kql.prod.md：生产告警与 KQL 建议。
 - appinsights-dashboard.prod.md：Application Insights 仪表盘（程序运行 + OTel 常用指标）建议。
 - appinsights-dashboard.prod.en.md：Application Insights dashboard 英文说明。
@@ -53,6 +54,19 @@
 10. 部署 `.NET`、Python 与 React UI 示例应用（Service 均使用 `ClusterIP`）。
 11. 应用 API 路由 Ingress 与 UI 根路径 Ingress。
 12. 验证统一入口、`/otlp/v1/traces` 通过 `otel-ui-otlp-proxy` 转发、基础状态与 Collector 指标。
+
+## Ingress 安全模板（可选）
+
+当公网扫描噪音较多（如 `.php`、`.jsp`、`javax.faces`）时，可按需应用模板：
+
+```bash
+kubectl apply -f ./prod/apps/ingress-security-template.prod.yaml
+```
+
+说明：
+
+- 模板默认包含 NGINX 限流注解（`limit-rps`、`limit-rpm`、`limit-connections`）。
+- 模板中的 `server-snippet` 用于拦截常见扫描路径；若集群未开启 `allow-snippet-annotations=true`，请先移除该段再应用。
 
 ## 命令（bash）
 

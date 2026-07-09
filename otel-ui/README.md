@@ -40,9 +40,9 @@ Optional OTEL env var:
 Build and push to ACR:
 
 ```powershell
-./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.3
+./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.4
 ```
 
 ```bash
-./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.3
+./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.4
 ```
