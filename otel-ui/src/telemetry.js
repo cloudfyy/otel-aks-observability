@@ -5,53 +5,38 @@ import { registerInstrumentations } from '@opentelemetry/instrumentation'
 import { Resource } from '@opentelemetry/resources'
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web'
+import { getTelemetryConfig } from './telemetry.config'
 
 const telemetryStateKey = '__otelUiTelemetryState__'
 
-function resolveCollectorEndpoint() {
-  return import.meta.env.VITE_OTEL_EXPORTER_OTLP_ENDPOINT || '/otlp/v1/traces'
-}
-
-function resolveEnvironmentName() {
-  return import.meta.env.MODE || 'development'
-}
-
 function createTelemetryState() {
+  // Read all OTEL knobs from the centralized config module.
+  const telemetryConfig = getTelemetryConfig()
   const exporter = new OTLPTraceExporter({
-    url: resolveCollectorEndpoint(),
+    url: telemetryConfig.collectorEndpoint,
   })
 
   const provider = new WebTracerProvider({
-    resource: new Resource({
-      'service.name': 'otel-ui',
-      'service.version': '1.0.4',
-      'deployment.environment.name': resolveEnvironmentName(),
-    }),
+    resource: new Resource(telemetryConfig.resourceAttributes),
     spanProcessors: [new BatchSpanProcessor(exporter)],
   })
 
+  // Register provider before instrumentation so auto-instrumented spans use this provider.
   provider.register()
 
   registerInstrumentations({
     instrumentations: [
       getWebAutoInstrumentations({
+        // Capture browser API calls while excluding OTLP self-export requests.
         '@opentelemetry/instrumentation-fetch': {
-          ignoreUrls: [/^\/otlp\/v1\/traces/],
-          propagateTraceHeaderCorsUrls: [
-            /^http:\/\/localhost:5041\/weatherforecast/,
-            /^http:\/\/localhost:8000\/weatherforecast/,
-            /^\/dotnet\/weatherforecast/,
-            /^\/python\/weatherforecast/,
-          ],
+          ignoreUrls: telemetryConfig.instrumentation.ignoreUrls,
+          propagateTraceHeaderCorsUrls:
+            telemetryConfig.instrumentation.propagateTraceHeaderCorsUrls,
         },
         '@opentelemetry/instrumentation-xml-http-request': {
-          ignoreUrls: [/^\/otlp\/v1\/traces/],
-          propagateTraceHeaderCorsUrls: [
-            /^http:\/\/localhost:5041\/weatherforecast/,
-            /^http:\/\/localhost:8000\/weatherforecast/,
-            /^\/dotnet\/weatherforecast/,
-            /^\/python\/weatherforecast/,
-          ],
+          ignoreUrls: telemetryConfig.instrumentation.ignoreUrls,
+          propagateTraceHeaderCorsUrls:
+            telemetryConfig.instrumentation.propagateTraceHeaderCorsUrls,
         },
       }),
     ],
@@ -63,6 +48,7 @@ function createTelemetryState() {
 }
 
 function initializeTelemetry() {
+  // HMR/re-import safe guard: initialize OTEL exactly once per browser runtime.
   if (globalThis[telemetryStateKey]) {
     return globalThis[telemetryStateKey]
   }
@@ -72,6 +58,7 @@ function initializeTelemetry() {
     globalThis[telemetryStateKey] = state
     return state
   } catch (error) {
+    // Keep app functionality even if telemetry setup fails.
     console.warn('OpenTelemetry initialization skipped for otel-ui.', error)
     const fallbackState = { tracer: trace.getTracer('otel-ui-fallback') }
     globalThis[telemetryStateKey] = fallbackState

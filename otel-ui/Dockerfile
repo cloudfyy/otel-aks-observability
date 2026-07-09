@@ -2,6 +2,9 @@ FROM node:24-alpine AS build
 
 WORKDIR /app
 
+ARG VITE_OTEL_ENVIRONMENT_NAME
+ENV VITE_OTEL_ENVIRONMENT_NAME=${VITE_OTEL_ENVIRONMENT_NAME}
+
 COPY package.json package-lock.json ./
 RUN npm ci
 

@@ -34,15 +34,33 @@ The UI also emits browser spans through the same-origin `/otlp/v1/traces` endpoi
 Optional OTEL env var:
 
 - `VITE_OTEL_EXPORTER_OTLP_ENDPOINT`: override the browser trace export endpoint if needed
+- `VITE_OTEL_SERVICE_NAME`: override `service.name` (default: `otel-ui`)
+- `VITE_OTEL_SERVICE_VERSION`: override `service.version` (default: `1.0.4`)
+- `VITE_OTEL_ENVIRONMENT_NAME`: override `deployment.environment.name` (default uses `MODE`)
+- `VITE_OTEL_IGNORE_URLS`: comma-separated regex list for ignored URLs (default: `^/otlp/v1/traces`)
+- `VITE_OTEL_PROPAGATE_TRACE_HEADER_URLS`: comma-separated regex list for trace header propagation
+
+Telemetry defaults are centralized in `src/telemetry.config.js` so endpoint, resource attributes,
+and instrumentation URL rules can be changed without editing telemetry bootstrap logic.
 
 ## Container image
 
 Build and push to ACR:
 
 ```powershell
-./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.4
+./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.5
+```
+
+For explicit OTEL environment labeling during build:
+
+```powershell
+./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.5 -OtelEnvironmentName dev
 ```
 
 ```bash
-./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.4
+./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.5
+```
+
+```bash
+./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.5 --otel-environment-name dev
 ```
