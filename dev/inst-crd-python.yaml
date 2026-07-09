@@ -14,8 +14,6 @@ spec:
     argument: "1"
   python:
     env:
-      - name: OTEL_SERVICE_NAME
-        value: otelapidemo-python
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
         value: http/protobuf
       - name: OTEL_LOGS_EXPORTER
