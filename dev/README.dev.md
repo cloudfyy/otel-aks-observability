@@ -405,3 +405,57 @@ requests
 | join kind=leftouter Ex on operation_Id
 | order by reqTime desc
 ```
+
+
+
+```kusto
+// 7)端到端链路汇总（按 operation_Id 聚合）
+union isfuzzy=true requests, dependencies, traces, exceptions
+| where timestamp > ago(30m)
+| extend
+  opId = tostring(operation_Id),
+  typ = tostring(itemType),
+  role = tolower(tostring(cloud_RoleName)),
+  nm = tostring(name),
+  dat = tostring(data),
+  u = tostring(column_ifexists("url", ""))
+| where isnotempty(opId) // 关键条件：仅保留可关联的链路数据
+| extend serviceKind = case(
+  role has "otelapidemo-python" or u has "/python/" or dat has "/python/", "python", // 关键条件：先判定 python，避免被 dotnet 模糊匹配误伤
+  (role has "otelapidemo" and role !has "python") or u has "/dotnet/" or dat has "/dotnet/" or nm has "/WeatherForecast", "dotnet",
+  role == "otel-ui" and typ == "dependency", "ui", // 关键条件：UI 以 dependency 作为前端调用信号
+  "other"
+)
+| summarize
+  endTime = max(timestamp),
+  hasUI = countif(serviceKind == "ui") > 0,
+  hasDotNet = countif(typ == "request" and serviceKind == "dotnet") > 0,
+  hasPython = countif(typ == "request" and serviceKind == "python") > 0,
+  reqCount = countif(typ == "request"),
+  depCount = countif(typ == "dependency"),
+  spanCount = count()
+by opId
+| extend chainStatus = case(
+  hasUI and hasDotNet and hasPython, "UI->.NET+Python",
+  hasUI and hasDotNet, "UI->.NET",
+  hasUI and hasPython, "UI->Python",
+  hasDotNet and not(hasUI), ".NET only(no UI)",
+  hasPython and not(hasUI), "Python only(no UI)",
+  "Incomplete"
+)
+| order by endTime desc
+```
+
+
+
+```kusto
+// 8) 按 operation_Id 查看全链路明细
+let opId = "opId"; // 关键条件：替换为目标 operation_Id
+union isfuzzy=true requests, dependencies, traces, exceptions
+| where operation_Id == opId // 关键条件：只看同一条链路
+| extend id=tostring(itemId), parent=tostring(operation_ParentId)
+| project timestamp, itemType, cloud_RoleName, name, message, resultCode, success, id, parent, operation_Id
+| order by timestamp asc
+```
+
+使用建议：先运行“端到端链路汇总”找到可疑 `opId`，再用“按 operation_Id 查看全链路明细”做逐条排查。

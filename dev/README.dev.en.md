@@ -74,6 +74,7 @@ Browser OTLP uses the same-namespace `otel-ui-otlp-proxy` Service to reach the C
 10. Run a short load test against both the .NET and Python sample apps to generate traces, logs, and metrics.
 11. Verify collector pipeline counters, Kubernetes resource attributes, and telemetry ingestion.
 
+
 ## Commands (bash)
 
 ```bash
@@ -391,3 +392,53 @@ requests
 | join kind=leftouter Ex on operation_Id
 | order by reqTime desc
 ```
+
+```kusto
+// 7) End-to-end summary (group by operation_Id)
+union isfuzzy=true requests, dependencies, traces, exceptions
+| where timestamp > ago(30m)
+| extend
+  opId = tostring(operation_Id),
+  typ = tostring(itemType),
+  role = tolower(tostring(cloud_RoleName)),
+  nm = tostring(name),
+  dat = tostring(data),
+  u = tostring(column_ifexists("url", ""))
+| where isnotempty(opId) // Key condition: keep only rows that can be correlated into a trace chain
+| extend serviceKind = case(
+  role has "otelapidemo-python" or u has "/python/" or dat has "/python/", "python", // Key condition: classify python first to avoid dotnet fuzzy-match collisions
+  (role has "otelapidemo" and role !has "python") or u has "/dotnet/" or dat has "/dotnet/" or nm has "/WeatherForecast", "dotnet",
+  role == "otel-ui" and typ == "dependency", "ui", // Key condition: treat UI dependency spans as frontend call signals
+  "other"
+)
+| summarize
+  endTime = max(timestamp),
+  hasUI = countif(serviceKind == "ui") > 0,
+  hasDotNet = countif(typ == "request" and serviceKind == "dotnet") > 0,
+  hasPython = countif(typ == "request" and serviceKind == "python") > 0,
+  reqCount = countif(typ == "request"),
+  depCount = countif(typ == "dependency"),
+  spanCount = count()
+by opId
+| extend chainStatus = case(
+  hasUI and hasDotNet and hasPython, "UI->.NET+Python",
+  hasUI and hasDotNet, "UI->.NET",
+  hasUI and hasPython, "UI->Python",
+  hasDotNet and not(hasUI), ".NET only(no UI)",
+  hasPython and not(hasUI), "Python only(no UI)",
+  "Incomplete"
+)
+| order by endTime desc
+```
+
+```kusto
+// 8) Full chain details by operation_Id
+let opId = "opId"; // Key condition: replace with your target operation_Id
+union isfuzzy=true requests, dependencies, traces, exceptions
+| where operation_Id == opId // Key condition: restrict to one end-to-end chain
+| extend id=tostring(itemId), parent=tostring(operation_ParentId)
+| project timestamp, itemType, cloud_RoleName, name, message, resultCode, success, id, parent, operation_Id
+| order by timestamp asc
+```
+
+Recommended workflow: run the summary query first to find suspicious `opId`, then run the detail query for step-by-step diagnosis.
