@@ -1,4 +1,4 @@
-import { trace } from '@opentelemetry/api'
+import { trace, type Tracer } from '@opentelemetry/api'
 import { getWebAutoInstrumentations } from '@opentelemetry/auto-instrumentations-web'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { registerInstrumentations } from '@opentelemetry/instrumentation'
@@ -7,17 +7,30 @@ import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web'
 import { getTelemetryConfig } from './telemetry.config'
 
-const telemetryStateKey = '__otelUiTelemetryState__'
+const telemetryStateKey = '__otelUiTelemetryState__' as const
 
-function createTelemetryState() {
+type TelemetryState = {
+  tracer: Tracer
+}
+
+type OTelGlobalState = typeof globalThis & {
+  [telemetryStateKey]?: TelemetryState
+}
+
+function createTelemetryState(): TelemetryState {
   // Read all OTEL knobs from the centralized config module.
   const telemetryConfig = getTelemetryConfig()
   const exporter = new OTLPTraceExporter({
     url: telemetryConfig.collectorEndpoint,
   })
+  // Some OTEL packages in the dependency graph carry duplicate Resource types.
+  const resource = new Resource(telemetryConfig.resourceAttributes)
+  const providerConfigResource = resource as unknown as NonNullable<
+    ConstructorParameters<typeof WebTracerProvider>[0]
+  >['resource']
 
   const provider = new WebTracerProvider({
-    resource: new Resource(telemetryConfig.resourceAttributes),
+    resource: providerConfigResource,
     spanProcessors: [new BatchSpanProcessor(exporter)],
   })
 
@@ -47,21 +60,23 @@ function createTelemetryState() {
   }
 }
 
-function initializeTelemetry() {
+function initializeTelemetry(): TelemetryState {
+  const globalState = globalThis as OTelGlobalState
+
   // HMR/re-import safe guard: initialize OTEL exactly once per browser runtime.
-  if (globalThis[telemetryStateKey]) {
-    return globalThis[telemetryStateKey]
+  if (globalState[telemetryStateKey]) {
+    return globalState[telemetryStateKey]
   }
 
   try {
     const state = createTelemetryState()
-    globalThis[telemetryStateKey] = state
+    globalState[telemetryStateKey] = state
     return state
   } catch (error) {
     // Keep app functionality even if telemetry setup fails.
     console.warn('OpenTelemetry initialization skipped for otel-ui.', error)
-    const fallbackState = { tracer: trace.getTracer('otel-ui-fallback') }
-    globalThis[telemetryStateKey] = fallbackState
+    const fallbackState: TelemetryState = { tracer: trace.getTracer('otel-ui-fallback') }
+    globalState[telemetryStateKey] = fallbackState
     return fallbackState
   }
 }

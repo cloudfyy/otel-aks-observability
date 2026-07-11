@@ -1,10 +1,43 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 
+type SourceKey = 'dotnet' | 'python'
+type Accent = 'dotnet' | 'python'
+
+type ForecastRecord = {
+  date: string
+  temperatureC: number
+  temperatureF: number
+  summary: string
+}
+
+type SourceConfig = {
+  label: string
+  endpoint: string
+  exceptionEndpoint: string
+  accent: Accent
+}
+
+type PanelState = {
+  data: ForecastRecord[]
+  error: string
+  loading: boolean
+}
+
+type ForecastState = {
+  dotnet: PanelState
+  python: PanelState
+  updatedAt: string
+}
+
 const refreshOptions = [5, 10, 30, 60]
 const exceptionRequestRate = 0.2
 
-function resolveApiBaseUrl(envValue, developmentDefault, productionDefault) {
+function resolveApiBaseUrl(
+  envValue: string | undefined,
+  developmentDefault: string,
+  productionDefault: string,
+): string {
   if (envValue) {
     return envValue
   }
@@ -12,7 +45,7 @@ function resolveApiBaseUrl(envValue, developmentDefault, productionDefault) {
   return import.meta.env.DEV ? developmentDefault : productionDefault
 }
 
-const sources = {
+const sources: Record<SourceKey, SourceConfig> = {
   dotnet: {
     label: '.NET API',
     endpoint: `${resolveApiBaseUrl(import.meta.env.VITE_DOTNET_API_BASE_URL, 'http://localhost:5041', '/dotnet')}/weatherforecast`,
@@ -27,11 +60,11 @@ const sources = {
   },
 }
 
-function formatTemperature(record) {
+function formatTemperature(record: ForecastRecord): string {
   return `${record.temperatureC}C / ${record.temperatureF}F`
 }
 
-function formatDate(value) {
+function formatDate(value: string): string {
   return new Date(value).toLocaleDateString('en-CA', {
     month: 'short',
     day: 'numeric',
@@ -39,7 +72,7 @@ function formatDate(value) {
   })
 }
 
-function normalizeErrorMessage(value) {
+function normalizeErrorMessage(value: string | null | undefined): string {
   if (!value) {
     return ''
   }
@@ -47,16 +80,22 @@ function normalizeErrorMessage(value) {
   return value.replace(/\s+/g, ' ').trim().slice(0, 300)
 }
 
-async function buildRequestError(response, sourceLabel) {
+async function buildRequestError(response: Response, sourceLabel: string): Promise<Error> {
   const contentType = response.headers.get('content-type') ?? ''
   let detail = ''
 
   if (contentType.includes('application/json')) {
-    const payload = await response.json().catch(() => null)
+    const payload: unknown = await response.json().catch(() => null)
 
     if (payload && typeof payload === 'object') {
+      const payloadRecord = payload as Record<string, unknown>
       detail = normalizeErrorMessage(
-        payload.detail ?? payload.title ?? payload.message ?? JSON.stringify(payload),
+        String(
+          payloadRecord.detail ??
+            payloadRecord.title ??
+            payloadRecord.message ??
+            JSON.stringify(payload),
+        ),
       )
     }
   } else {
@@ -70,7 +109,7 @@ async function buildRequestError(response, sourceLabel) {
   )
 }
 
-function resolveRequestEndpoint(source) {
+function resolveRequestEndpoint(source: SourceConfig): string {
   if (Math.random() < exceptionRequestRate) {
     return source.exceptionEndpoint
   }
@@ -78,7 +117,14 @@ function resolveRequestEndpoint(source) {
   return source.endpoint
 }
 
-function ForecastPanel({ label, endpoint, accent, state }) {
+type ForecastPanelProps = {
+  label: string
+  endpoint: string
+  accent: Accent
+  state: PanelState
+}
+
+function ForecastPanel({ label, endpoint, accent, state }: ForecastPanelProps) {
   return (
     <article className={`panel panel-${accent}`}>
       <header className="panel-header">
@@ -109,7 +155,7 @@ function ForecastPanel({ label, endpoint, accent, state }) {
 }
 
 function App() {
-  const [forecastState, setForecastState] = useState({
+  const [forecastState, setForecastState] = useState<ForecastState>({
     dotnet: { data: [], error: '', loading: true },
     python: { data: [], error: '', loading: true },
     updatedAt: '',
@@ -120,7 +166,7 @@ function App() {
   useEffect(() => {
     const controller = new AbortController()
     let isRefreshing = false
-    let timerId
+    let timerId: number | undefined
 
     async function loadForecasts() {
       if (isRefreshing) {
@@ -136,9 +182,9 @@ function App() {
       }))
 
       try {
-        const entries = Object.entries(sources)
+        const entries = Object.entries(sources) as Array<[SourceKey, SourceConfig]>
         const results = await Promise.allSettled(
-          entries.map(async ([key, source]) => {
+          entries.map(async ([key, source]): Promise<[SourceKey, ForecastRecord[]]> => {
             const endpoint = resolveRequestEndpoint(source)
             const response = await fetch(endpoint, { signal: controller.signal })
 
@@ -146,7 +192,7 @@ function App() {
               throw await buildRequestError(response, source.label)
             }
 
-            return [key, await response.json()]
+            return [key, (await response.json()) as ForecastRecord[]]
           }),
         )
 
@@ -164,21 +210,22 @@ function App() {
           python: derivePanelState('python', results),
         })
       } catch (error) {
-        if (error.name === 'AbortError') {
+        if (error instanceof DOMException && error.name === 'AbortError') {
           return
         }
 
+        const message = error instanceof Error ? error.message : 'Unexpected error while loading data.'
         setForecastState({
           updatedAt: '',
-          dotnet: { data: [], error: error.message, loading: false },
-          python: { data: [], error: error.message, loading: false },
+          dotnet: { data: [], error: message, loading: false },
+          python: { data: [], error: message, loading: false },
         })
       } finally {
         isRefreshing = false
       }
     }
 
-    loadForecasts()
+    loadForecasts().catch(() => undefined)
 
     if (autoRefreshEnabled) {
       timerId = window.setInterval(loadForecasts, refreshIntervalSeconds * 1000)
@@ -199,8 +246,8 @@ function App() {
           <p className="eyebrow">Cross-runtime weather board</p>
           <h1>One React front end, two backend runtimes.</h1>
           <p className="hero-copy">
-            This dashboard calls the .NET and Python weather forecast APIs directly and
-            shows their live responses side by side.
+            This dashboard calls the .NET and Python weather forecast APIs directly and shows their
+            live responses side by side.
           </p>
         </div>
         <div className="hero-meta">
@@ -242,14 +289,23 @@ function App() {
   )
 }
 
-function derivePanelState(key, results) {
-  const index = Object.keys(sources).indexOf(key)
+function derivePanelState(
+  key: SourceKey,
+  results: PromiseSettledResult<[SourceKey, ForecastRecord[]]>[],
+): PanelState {
+  const sourceKeys = Object.keys(sources) as SourceKey[]
+  const index = sourceKeys.indexOf(key)
   const result = results[index]
 
   if (!result || result.status === 'rejected') {
+    const reasonMessage =
+      result?.status === 'rejected' && result.reason instanceof Error
+        ? result.reason.message
+        : undefined
+
     return {
       data: [],
-      error: result?.reason?.message ?? `Unable to load ${sources[key].label}`,
+      error: reasonMessage ?? `Unable to load ${sources[key].label}`,
       loading: false,
     }
   }

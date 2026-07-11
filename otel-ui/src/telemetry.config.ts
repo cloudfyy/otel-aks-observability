@@ -1,5 +1,5 @@
 const DEFAULT_SERVICE_NAME = 'otel-ui'
-const DEFAULT_SERVICE_VERSION = '1.0.5'
+const DEFAULT_SERVICE_VERSION = '1.0.6'
 const DEFAULT_OTLP_ENDPOINT = '/otlp/v1/traces'
 const DEFAULT_IGNORE_URLS = ['^/otlp/v1/traces']
 const DEFAULT_PROPAGATE_TRACE_HEADER_URLS = [
@@ -9,7 +9,20 @@ const DEFAULT_PROPAGATE_TRACE_HEADER_URLS = [
   '^/python/weatherforecast',
 ]
 
-function parseCsv(value, fallback) {
+interface TelemetryConfig {
+  collectorEndpoint: string
+  resourceAttributes: {
+    'service.name': string
+    'service.version': string
+    'deployment.environment.name': string
+  }
+  instrumentation: {
+    ignoreUrls: RegExp[]
+    propagateTraceHeaderCorsUrls: RegExp[]
+  }
+}
+
+function parseCsv(value: string | undefined, fallback: string[]): string[] {
   // Accept comma-separated env vars and fall back to built-ins when unset.
   if (!value) {
     return fallback
@@ -23,7 +36,7 @@ function parseCsv(value, fallback) {
   return parsed.length > 0 ? parsed : fallback
 }
 
-function toRegexList(patterns, configKey) {
+function toRegexList(patterns: string[], configKey: string): RegExp[] {
   // Keep telemetry resilient by skipping invalid regex patterns instead of throwing.
   return patterns
     .map((pattern) => {
@@ -34,10 +47,10 @@ function toRegexList(patterns, configKey) {
         return null
       }
     })
-    .filter(Boolean)
+    .filter((item): item is RegExp => item !== null)
 }
 
-export function getTelemetryConfig() {
+export function getTelemetryConfig(): TelemetryConfig {
   const env = import.meta.env
 
   const ignoreUrlPatterns = parseCsv(env.VITE_OTEL_IGNORE_URLS, DEFAULT_IGNORE_URLS)

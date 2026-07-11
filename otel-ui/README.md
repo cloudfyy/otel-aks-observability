@@ -41,7 +41,7 @@ Optional OTEL env var:
 - `VITE_OTEL_IGNORE_URLS`: comma-separated regex list for ignored URLs (default: `^/otlp/v1/traces`)
 - `VITE_OTEL_PROPAGATE_TRACE_HEADER_URLS`: comma-separated regex list for trace header propagation
 
-Telemetry defaults are centralized in `src/telemetry.config.js` so endpoint, resource attributes,
+Telemetry defaults are centralized in `src/telemetry.config.ts` so endpoint, resource attributes,
 and instrumentation URL rules can be changed without editing telemetry bootstrap logic.
 
 ## Container image
@@ -49,19 +49,19 @@ and instrumentation URL rules can be changed without editing telemetry bootstrap
 Build and push to ACR:
 
 ```powershell
-./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.5
+./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.6
 ```
 
 For explicit OTEL environment labeling during build:
 
 ```powershell
-./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.5 -OtelEnvironmentName dev
+./build-push-acr.ps1 -AcrLoginServer qiqiacr.azurecr.io -ImageTag 1.0.6 -OtelEnvironmentName dev
 ```
 
 ```bash
-./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.5
+./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.6
 ```
 
 ```bash
-./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.5 --otel-environment-name dev
+./build-push-acr.sh --acr-login-server qiqiacr.azurecr.io --image-tag 1.0.6 --otel-environment-name dev
 ```
