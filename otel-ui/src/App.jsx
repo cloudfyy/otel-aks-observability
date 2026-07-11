@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 
 const refreshOptions = [5, 10, 30, 60]
+const exceptionRequestRate = 0.2
 
 function resolveApiBaseUrl(envValue, developmentDefault, productionDefault) {
   if (envValue) {
@@ -15,11 +16,13 @@ const sources = {
   dotnet: {
     label: '.NET API',
     endpoint: `${resolveApiBaseUrl(import.meta.env.VITE_DOTNET_API_BASE_URL, 'http://localhost:5041', '/dotnet')}/weatherforecast`,
+    exceptionEndpoint: `${resolveApiBaseUrl(import.meta.env.VITE_DOTNET_API_BASE_URL, 'http://localhost:5041', '/dotnet')}/weatherforecast/throw-custom-exception`,
     accent: 'dotnet',
   },
   python: {
     label: 'Python API',
     endpoint: `${resolveApiBaseUrl(import.meta.env.VITE_PYTHON_API_BASE_URL, 'http://localhost:8000', '/python')}/weatherforecast`,
+    exceptionEndpoint: `${resolveApiBaseUrl(import.meta.env.VITE_PYTHON_API_BASE_URL, 'http://localhost:8000', '/python')}/throw-custom-exception`,
     accent: 'python',
   },
 }
@@ -34,6 +37,45 @@ function formatDate(value) {
     day: 'numeric',
     weekday: 'short',
   })
+}
+
+function normalizeErrorMessage(value) {
+  if (!value) {
+    return ''
+  }
+
+  return value.replace(/\s+/g, ' ').trim().slice(0, 300)
+}
+
+async function buildRequestError(response, sourceLabel) {
+  const contentType = response.headers.get('content-type') ?? ''
+  let detail = ''
+
+  if (contentType.includes('application/json')) {
+    const payload = await response.json().catch(() => null)
+
+    if (payload && typeof payload === 'object') {
+      detail = normalizeErrorMessage(
+        payload.detail ?? payload.title ?? payload.message ?? JSON.stringify(payload),
+      )
+    }
+  } else {
+    detail = normalizeErrorMessage(await response.text())
+  }
+
+  return new Error(
+    detail
+      ? `${sourceLabel} returned ${response.status}: ${detail}`
+      : `${sourceLabel} returned ${response.status}`,
+  )
+}
+
+function resolveRequestEndpoint(source) {
+  if (Math.random() < exceptionRequestRate) {
+    return source.exceptionEndpoint
+  }
+
+  return source.endpoint
 }
 
 function ForecastPanel({ label, endpoint, accent, state }) {
@@ -97,10 +139,11 @@ function App() {
         const entries = Object.entries(sources)
         const results = await Promise.allSettled(
           entries.map(async ([key, source]) => {
-            const response = await fetch(source.endpoint, { signal: controller.signal })
+            const endpoint = resolveRequestEndpoint(source)
+            const response = await fetch(endpoint, { signal: controller.signal })
 
             if (!response.ok) {
-              throw new Error(`${source.label} returned ${response.status}`)
+              throw await buildRequestError(response, source.label)
             }
 
             return [key, await response.json()]

@@ -1,6 +1,7 @@
 # otel-ui
 
 React dashboard that calls the `.NET` and `Python` sample APIs and displays their live weather responses side by side.
+To validate error observability, the UI randomly (about 20% probability) calls each backend's exception endpoint and renders returned error details in the corresponding panel.
 
 ## Local development
 
