@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: otel-ui
-          image: <ACR_LOGIN_SERVER>/otel-ui:1.0.5
+          image: <ACR_LOGIN_SERVER>/otel-ui:1.0.6
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
