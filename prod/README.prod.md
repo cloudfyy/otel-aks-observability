@@ -409,7 +409,7 @@ union requests, dependencies, traces
 
 ### App Insights 异常查询 KQL（30 分钟）
 
-- 建议先触发一轮异常接口（如 `/dotnet/throw-custom-exception`、`/python/throw-custom-exception`、`/dotnet/throw-and-catch-exception`、`/python/throw-and-catch-exception`），再等待 3-10 分钟查询。
+- 建议先触发一轮异常接口（如 `/dotnet/throw-custom-exception`、`/python/throw-custom-exception`、`/cpp/weatherforecast/throw-custom-exception`、`/dotnet/throw-and-catch-exception`、`/python/throw-and-catch-exception`、`/cpp/weatherforecast/throw-and-catch-exception`），再等待 3-10 分钟查询。
 - 先看 `exceptions` 总览，再与 `requests` 按 `operation_Id` 关联排查。
 
 ```kusto
@@ -441,6 +441,65 @@ requests
 | project reqTime=timestamp, operation_Id, reqRole=cloud_RoleName, name, url, resultCode, success
 | join kind=leftouter Ex on operation_Id
 | order by reqTime desc
+```
+
+```kusto
+// 3) 端到端链路汇总（按 operation_Id 聚合，prod）
+union isfuzzy=true requests, dependencies, traces, exceptions
+| where timestamp > ago(30m)
+| extend
+  opId = tostring(operation_Id),
+  typ = tostring(itemType),
+  role = tolower(tostring(cloud_RoleName)),
+  nm = tostring(name),
+  dat = tostring(data),
+  u = tostring(column_ifexists("url", "")),
+  svcNs = tostring(customDimensions["service.namespace"])
+| where isnotempty(opId)
+| where role has "apps-prod" or svcNs =~ "apps-prod"
+| extend serviceKind = case(
+  role has "otelapidemo-python" or u has "/python/" or dat has "/python/", "python",
+  role has "otelapidemo-cpp" or u has "/cpp/" or dat has "/cpp/", "cpp",
+  (role has "otelapidemo" and role !has "python" and role !has "cpp") or u has "/dotnet/" or dat has "/dotnet/" or nm has "/WeatherForecast", "dotnet",
+  role == "otel-ui" and typ == "dependency", "ui",
+  "other"
+)
+| summarize
+  endTime = max(timestamp),
+  hasUI = countif(serviceKind == "ui") > 0,
+  hasDotNet = countif(typ == "request" and serviceKind == "dotnet") > 0,
+  hasPython = countif(typ == "request" and serviceKind == "python") > 0,
+  hasCpp = countif(typ == "request" and serviceKind == "cpp") > 0,
+  reqCount = countif(typ == "request"),
+  depCount = countif(typ == "dependency"),
+  spanCount = count()
+by opId
+| extend chainStatus = case(
+  hasUI and hasDotNet and hasPython and hasCpp, "UI->.NET+Python+C++",
+  hasUI and hasDotNet and hasPython, "UI->.NET+Python",
+  hasUI and hasDotNet and hasCpp, "UI->.NET+C++",
+  hasUI and hasPython and hasCpp, "UI->Python+C++",
+  hasUI and hasDotNet, "UI->.NET",
+  hasUI and hasPython, "UI->Python",
+  hasUI and hasCpp, "UI->C++",
+  hasDotNet and not(hasUI), ".NET only(no UI)",
+  hasPython and not(hasUI), "Python only(no UI)",
+  hasCpp and not(hasUI), "C++ only(no UI)",
+  "Incomplete"
+)
+| order by endTime desc
+```
+
+```kusto
+// 4) 按 operation_Id 查看全链路明细（prod）
+let opId = "opId";
+union isfuzzy=true requests, dependencies, traces, exceptions
+| where operation_Id == opId
+| extend role = tolower(tostring(cloud_RoleName)), svcNs = tostring(customDimensions["service.namespace"])
+| where role has "apps-prod" or svcNs =~ "apps-prod"
+| extend id=tostring(itemId), parent=tostring(operation_ParentId)
+| project timestamp, itemType, cloud_RoleName, name, message, resultCode, success, id, parent, operation_Id
+| order by timestamp asc
 ```
 
 ### App Insights Metrics 核验 KQL（30 分钟）

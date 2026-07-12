@@ -426,6 +426,65 @@ requests
 | order by reqTime desc
 ```
 
+```kusto
+// 3) End-to-end summary (group by operation_Id, prod)
+union isfuzzy=true requests, dependencies, traces, exceptions
+| where timestamp > ago(30m)
+| extend
+  opId = tostring(operation_Id),
+  typ = tostring(itemType),
+  role = tolower(tostring(cloud_RoleName)),
+  nm = tostring(name),
+  dat = tostring(data),
+  u = tostring(column_ifexists("url", "")),
+  svcNs = tostring(customDimensions["service.namespace"])
+| where isnotempty(opId)
+| where role has "apps-prod" or svcNs =~ "apps-prod"
+| extend serviceKind = case(
+  role has "otelapidemo-python" or u has "/python/" or dat has "/python/", "python",
+  role has "otelapidemo-cpp" or u has "/cpp/" or dat has "/cpp/", "cpp",
+  (role has "otelapidemo" and role !has "python" and role !has "cpp") or u has "/dotnet/" or dat has "/dotnet/" or nm has "/WeatherForecast", "dotnet",
+  role == "otel-ui" and typ == "dependency", "ui",
+  "other"
+)
+| summarize
+  endTime = max(timestamp),
+  hasUI = countif(serviceKind == "ui") > 0,
+  hasDotNet = countif(typ == "request" and serviceKind == "dotnet") > 0,
+  hasPython = countif(typ == "request" and serviceKind == "python") > 0,
+  hasCpp = countif(typ == "request" and serviceKind == "cpp") > 0,
+  reqCount = countif(typ == "request"),
+  depCount = countif(typ == "dependency"),
+  spanCount = count()
+by opId
+| extend chainStatus = case(
+  hasUI and hasDotNet and hasPython and hasCpp, "UI->.NET+Python+C++",
+  hasUI and hasDotNet and hasPython, "UI->.NET+Python",
+  hasUI and hasDotNet and hasCpp, "UI->.NET+C++",
+  hasUI and hasPython and hasCpp, "UI->Python+C++",
+  hasUI and hasDotNet, "UI->.NET",
+  hasUI and hasPython, "UI->Python",
+  hasUI and hasCpp, "UI->C++",
+  hasDotNet and not(hasUI), ".NET only(no UI)",
+  hasPython and not(hasUI), "Python only(no UI)",
+  hasCpp and not(hasUI), "C++ only(no UI)",
+  "Incomplete"
+)
+| order by endTime desc
+```
+
+```kusto
+// 4) Full chain details by operation_Id (prod)
+let opId = "opId";
+union isfuzzy=true requests, dependencies, traces, exceptions
+| where operation_Id == opId
+| extend role = tolower(tostring(cloud_RoleName)), svcNs = tostring(customDimensions["service.namespace"])
+| where role has "apps-prod" or svcNs =~ "apps-prod"
+| extend id=tostring(itemId), parent=tostring(operation_ParentId)
+| project timestamp, itemType, cloud_RoleName, name, message, resultCode, success, id, parent, operation_Id
+| order by timestamp asc
+```
+
 ### App Insights Metrics Verification KQL (30m)
 
 - OTel metrics usually land in the `customMetrics` table for classic App Insights. Workspace-based App Insights may expose the same data through `AppMetrics`. The queries below use `union isfuzzy=true` to support both schemas.

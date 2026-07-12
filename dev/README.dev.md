@@ -459,7 +459,8 @@ union isfuzzy=true requests, dependencies, traces, exceptions
 | where isnotempty(opId) // 关键条件：仅保留可关联的链路数据
 | extend serviceKind = case(
   role has "otelapidemo-python" or u has "/python/" or dat has "/python/", "python", // 关键条件：先判定 python，避免被 dotnet 模糊匹配误伤
-  (role has "otelapidemo" and role !has "python") or u has "/dotnet/" or dat has "/dotnet/" or nm has "/WeatherForecast", "dotnet",
+  role has "otelapidemo-cpp" or u has "/cpp/" or dat has "/cpp/", "cpp", // 关键条件：单独判定 C++，避免被 dotnet 条件吞掉
+  (role has "otelapidemo" and role !has "python" and role !has "cpp") or u has "/dotnet/" or dat has "/dotnet/" or nm has "/WeatherForecast", "dotnet",
   role == "otel-ui" and typ == "dependency", "ui", // 关键条件：UI 以 dependency 作为前端调用信号
   "other"
 )
@@ -468,16 +469,22 @@ union isfuzzy=true requests, dependencies, traces, exceptions
   hasUI = countif(serviceKind == "ui") > 0,
   hasDotNet = countif(typ == "request" and serviceKind == "dotnet") > 0,
   hasPython = countif(typ == "request" and serviceKind == "python") > 0,
+  hasCpp = countif(typ == "request" and serviceKind == "cpp") > 0,
   reqCount = countif(typ == "request"),
   depCount = countif(typ == "dependency"),
   spanCount = count()
 by opId
 | extend chainStatus = case(
+  hasUI and hasDotNet and hasPython and hasCpp, "UI->.NET+Python+C++",
   hasUI and hasDotNet and hasPython, "UI->.NET+Python",
+  hasUI and hasDotNet and hasCpp, "UI->.NET+C++",
+  hasUI and hasPython and hasCpp, "UI->Python+C++",
   hasUI and hasDotNet, "UI->.NET",
   hasUI and hasPython, "UI->Python",
+  hasUI and hasCpp, "UI->C++",
   hasDotNet and not(hasUI), ".NET only(no UI)",
   hasPython and not(hasUI), "Python only(no UI)",
+  hasCpp and not(hasUI), "C++ only(no UI)",
   "Incomplete"
 )
 | order by endTime desc

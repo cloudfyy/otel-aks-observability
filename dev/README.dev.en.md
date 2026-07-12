@@ -424,7 +424,8 @@ union isfuzzy=true requests, dependencies, traces, exceptions
 | where isnotempty(opId) // Key condition: keep only rows that can be correlated into a trace chain
 | extend serviceKind = case(
   role has "otelapidemo-python" or u has "/python/" or dat has "/python/", "python", // Key condition: classify python first to avoid dotnet fuzzy-match collisions
-  (role has "otelapidemo" and role !has "python") or u has "/dotnet/" or dat has "/dotnet/" or nm has "/WeatherForecast", "dotnet",
+  role has "otelapidemo-cpp" or u has "/cpp/" or dat has "/cpp/", "cpp", // Key condition: classify C++ explicitly before dotnet matching
+  (role has "otelapidemo" and role !has "python" and role !has "cpp") or u has "/dotnet/" or dat has "/dotnet/" or nm has "/WeatherForecast", "dotnet",
   role == "otel-ui" and typ == "dependency", "ui", // Key condition: treat UI dependency spans as frontend call signals
   "other"
 )
@@ -433,16 +434,22 @@ union isfuzzy=true requests, dependencies, traces, exceptions
   hasUI = countif(serviceKind == "ui") > 0,
   hasDotNet = countif(typ == "request" and serviceKind == "dotnet") > 0,
   hasPython = countif(typ == "request" and serviceKind == "python") > 0,
+  hasCpp = countif(typ == "request" and serviceKind == "cpp") > 0,
   reqCount = countif(typ == "request"),
   depCount = countif(typ == "dependency"),
   spanCount = count()
 by opId
 | extend chainStatus = case(
+  hasUI and hasDotNet and hasPython and hasCpp, "UI->.NET+Python+C++",
   hasUI and hasDotNet and hasPython, "UI->.NET+Python",
+  hasUI and hasDotNet and hasCpp, "UI->.NET+C++",
+  hasUI and hasPython and hasCpp, "UI->Python+C++",
   hasUI and hasDotNet, "UI->.NET",
   hasUI and hasPython, "UI->Python",
+  hasUI and hasCpp, "UI->C++",
   hasDotNet and not(hasUI), ".NET only(no UI)",
   hasPython and not(hasUI), "Python only(no UI)",
+  hasCpp and not(hasUI), "C++ only(no UI)",
   "Incomplete"
 )
 | order by endTime desc
