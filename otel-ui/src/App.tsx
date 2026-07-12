@@ -68,7 +68,7 @@ const sources: Record<SourceKey, SourceConfig> = {
 }
 
 function formatTemperature(record: ForecastRecord): string {
-  return `${record.temperatureC}C / ${record.temperatureF}F`
+  return `${record.temperatureC}°C / ${record.temperatureF}°F`
 }
 
 function formatDate(value: string): string {
