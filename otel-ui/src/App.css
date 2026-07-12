@@ -69,7 +69,7 @@
 
 .panel-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
 }
 
@@ -87,6 +87,10 @@
 
 .panel-python {
   background: linear-gradient(180deg, rgba(255, 251, 237, 0.96), rgba(255, 243, 203, 0.92));
+}
+
+.panel-cpp {
+  background: linear-gradient(180deg, rgba(243, 255, 249, 0.96), rgba(218, 247, 233, 0.92));
 }
 
 .panel-header {
@@ -144,8 +148,7 @@
 }
 
 @media (max-width: 900px) {
-  .hero,
-  .panel-grid {
+  .hero {
     grid-template-columns: 1fr;
   }
 

@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_DOTNET_API_BASE_URL?: string
   readonly VITE_PYTHON_API_BASE_URL?: string
+  readonly VITE_CPP_API_BASE_URL?: string
   readonly VITE_OTEL_EXPORTER_OTLP_ENDPOINT?: string
   readonly VITE_OTEL_SERVICE_NAME?: string
   readonly VITE_OTEL_SERVICE_VERSION?: string

@@ -5,8 +5,10 @@ const DEFAULT_IGNORE_URLS = ['^/otlp/v1/traces']
 const DEFAULT_PROPAGATE_TRACE_HEADER_URLS = [
   '^http://localhost:5041/weatherforecast',
   '^http://localhost:8000/weatherforecast',
+  '^http://localhost:8082/weatherforecast',
   '^/dotnet/weatherforecast',
   '^/python/weatherforecast',
+  '^/cpp/weatherforecast',
 ]
 
 interface TelemetryConfig {

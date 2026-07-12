@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 
-type SourceKey = 'dotnet' | 'python'
-type Accent = 'dotnet' | 'python'
+type SourceKey = 'dotnet' | 'python' | 'cpp'
+type Accent = 'dotnet' | 'python' | 'cpp'
 
 type ForecastRecord = {
   date: string
@@ -27,6 +27,7 @@ type PanelState = {
 type ForecastState = {
   dotnet: PanelState
   python: PanelState
+  cpp: PanelState
   updatedAt: string
 }
 
@@ -57,6 +58,12 @@ const sources: Record<SourceKey, SourceConfig> = {
     endpoint: `${resolveApiBaseUrl(import.meta.env.VITE_PYTHON_API_BASE_URL, 'http://localhost:8000', '/python')}/weatherforecast`,
     exceptionEndpoint: `${resolveApiBaseUrl(import.meta.env.VITE_PYTHON_API_BASE_URL, 'http://localhost:8000', '/python')}/throw-custom-exception`,
     accent: 'python',
+  },
+  cpp: {
+    label: 'C++ API',
+    endpoint: `${resolveApiBaseUrl(import.meta.env.VITE_CPP_API_BASE_URL, 'http://localhost:8082', '/cpp')}/weatherforecast`,
+    exceptionEndpoint: `${resolveApiBaseUrl(import.meta.env.VITE_CPP_API_BASE_URL, 'http://localhost:8082', '/cpp')}/weatherforecast/throw-custom-exception`,
+    accent: 'cpp',
   },
 }
 
@@ -158,6 +165,7 @@ function App() {
   const [forecastState, setForecastState] = useState<ForecastState>({
     dotnet: { data: [], error: '', loading: true },
     python: { data: [], error: '', loading: true },
+    cpp: { data: [], error: '', loading: true },
     updatedAt: '',
   })
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true)
@@ -179,6 +187,7 @@ function App() {
         ...current,
         dotnet: { ...current.dotnet, loading: current.dotnet.data.length === 0, error: '' },
         python: { ...current.python, loading: current.python.data.length === 0, error: '' },
+        cpp: { ...current.cpp, loading: current.cpp.data.length === 0, error: '' },
       }))
 
       try {
@@ -208,6 +217,7 @@ function App() {
           }),
           dotnet: derivePanelState('dotnet', results),
           python: derivePanelState('python', results),
+          cpp: derivePanelState('cpp', results),
         })
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
@@ -219,6 +229,7 @@ function App() {
           updatedAt: '',
           dotnet: { data: [], error: message, loading: false },
           python: { data: [], error: message, loading: false },
+          cpp: { data: [], error: message, loading: false },
         })
       } finally {
         isRefreshing = false
@@ -244,10 +255,10 @@ function App() {
       <section className="hero">
         <div>
           <p className="eyebrow">Cross-runtime weather board</p>
-          <h1>One React front end, two backend runtimes.</h1>
+          <h1>One React front end, three backend runtimes.</h1>
           <p className="hero-copy">
-            This dashboard calls the .NET and Python weather forecast APIs directly and shows their
-            live responses side by side.
+            This dashboard calls the .NET, Python, and C++ weather forecast APIs directly and
+            shows their live responses side by side.
           </p>
         </div>
         <div className="hero-meta">
@@ -284,6 +295,7 @@ function App() {
       <section className="panel-grid">
         <ForecastPanel {...sources.dotnet} state={forecastState.dotnet} />
         <ForecastPanel {...sources.python} state={forecastState.python} />
+        <ForecastPanel {...sources.cpp} state={forecastState.cpp} />
       </section>
     </main>
   )
