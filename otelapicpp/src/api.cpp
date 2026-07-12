@@ -3,6 +3,7 @@
 #include <exception>
 #include <iostream>
 #include <string>
+#include <typeinfo>
 
 #include <nlohmann/json.hpp>
 
@@ -11,6 +12,7 @@
 #include <opentelemetry/trace/propagation/http_trace_context.h>
 #include <opentelemetry/trace/scope.h>
 
+#include "otelapicpp/exceptions.h"
 #include "otelapicpp/weather.h"
 
 namespace trace_api = opentelemetry::trace;
@@ -50,6 +52,24 @@ void AddCorsHeaders(crow::response &response, const std::string &allowed_origins
   response.add_header("Access-Control-Allow-Origin", allowed_origins);
   response.add_header("Access-Control-Allow-Headers", "*");
   response.add_header("Access-Control-Allow-Methods", "GET,OPTIONS");
+}
+
+void RecordException(
+    const opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> &span,
+    const std::exception &ex)
+{
+  const auto *custom_exception = dynamic_cast<const CustomTestException *>(&ex);
+  const auto exception_type = std::string(
+      custom_exception != nullptr ? "CustomTestException" : typeid(ex).name());
+  const auto message = std::string(ex.what());
+  span->SetAttribute("exception.type", exception_type);
+  span->SetAttribute("exception.message", message);
+  span->AddEvent(
+      "exception",
+      {{"exception.type", exception_type},
+       {"exception.message", message},
+       {"exception.escaped", false}});
+  span->SetStatus(opentelemetry::trace::StatusCode::kError, message);
 }
 
 opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> StartServerSpan(
@@ -100,10 +120,7 @@ void RegisterRoutes(
     }
     catch (const std::exception &ex)
     {
-      span->SetAttribute("exception.type", "std::exception");
-      span->SetAttribute("exception.message", ex.what());
-      span->AddEvent("exception");
-      span->SetStatus(opentelemetry::trace::StatusCode::kError, ex.what());
+      RecordException(span, ex);
       response.code = 500;
       response.body = R"({"message":"Unexpected error while building weather forecast."})";
     }
@@ -131,10 +148,7 @@ void RegisterRoutes(
     }
     catch (const std::exception &ex)
     {
-      span->SetAttribute("exception.type", "std::exception");
-      span->SetAttribute("exception.message", ex.what());
-      span->AddEvent("exception");
-      span->SetStatus(opentelemetry::trace::StatusCode::kError, ex.what());
+      RecordException(span, ex);
       response.code = 500;
       response.body = nlohmann::json({{"message", ex.what()}}).dump();
     }
@@ -158,10 +172,7 @@ void RegisterRoutes(
     catch (const std::exception &ex)
     {
       std::cerr << "[Handled Exception] " << ex.what() << std::endl;
-      span->SetAttribute("exception.type", "std::exception");
-      span->SetAttribute("exception.message", ex.what());
-      span->AddEvent("exception");
-      span->SetStatus(opentelemetry::trace::StatusCode::kError, ex.what());
+      RecordException(span, ex);
     }
 
     crow::response response(200);
