@@ -51,7 +51,7 @@
   ],
   "panels": [
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -59,175 +59,176 @@
         "y": 0
       },
       "id": 52,
-      "panels": [],
-      "title": "Azure Portal Links",
-      "type": "row"
-    },
-    {
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 5,
-        "x": 0,
-        "y": 1
-      },
-      "id": 10,
-      "options": {
-        "code": {
-          "language": "plaintext",
-          "showLineNumbers": false,
-          "showMiniMap": false
-        },
-        "content": "<a style=\"color: inherit;\" href=\"https://portal.azure.com/#@${tenant}/resource/subscriptions/${sub}/resourceGroups/${rg}/providers/microsoft.insights/components/${res}/overview\" target=\"_blank\">\n  <div>\n    <h3 style=\"color: #a16feb\"> ${res} </h1>\n    <h5 style=\"margin-bottom: 0px;\"> Application Insights  </h5>\n  </div>\n</a>",
-        "mode": "html"
-      },
-      "pluginVersion": "12.4.3",
-      "title": "",
-      "type": "text"
-    },
-    {
-      "datasource": {
-        "type": "grafana-azure-monitor-datasource",
-        "uid": "${am_ds}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "text",
-            "mode": "fixed"
-          },
-          "mappings": [],
-          "noValue": "--",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Availability"
-            },
-            "properties": [
-              {
-                "id": "links",
-                "value": [
-                  {
-                    "targetBlank": true,
-                    "title": "",
-                    "url": "https://portal.azure.com/#@${tenant}/resource/subscriptions/${sub}/resourceGroups/${rg}/providers/microsoft.insights/components/${res}/availability"
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 2,
-        "x": 8,
-        "y": 1
-      },
-      "id": 40,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "vertical",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^Availability otel$/",
-          "values": false
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.4.3",
-      "targets": [
+      "panels": [
         {
-          "azureMonitor": {
-            "aggOptions": [],
-            "aggregation": "Average",
-            "allowedTimeGrainsMs": [
-              60000,
-              300000,
-              900000,
-              1800000,
-              3600000,
-              21600000,
-              43200000,
-              86400000
-            ],
-            "dimensionFilters": [],
-            "metricDefinition": "microsoft.insights/components",
-            "metricName": "availabilityResults/availabilityPercentage",
-            "metricNamespace": "microsoft.insights/components",
-            "resources": [
-              {
-                "resourceGroup": "$rg",
-                "resourceName": "$res"
-              }
-            ],
-            "timeGrain": "auto",
-            "timeGrains": [],
-            "top": "50"
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
           },
+          "gridPos": {
+            "h": 3,
+            "w": 5,
+            "x": 0,
+            "y": 1
+          },
+          "id": 10,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "<a style=\"color: inherit;\" href=\"https://portal.azure.com/#@${tenant}/resource/subscriptions/${sub}/resourceGroups/${rg}/providers/microsoft.insights/components/${res}/overview\" target=\"_blank\">\n  <div>\n    <h3 style=\"color: #a16feb\"> ${res} </h1>\n    <h5 style=\"margin-bottom: 0px;\"> Application Insights  </h5>\n  </div>\n</a>",
+            "mode": "html"
+          },
+          "pluginVersion": "12.4.3",
+          "title": "",
+          "type": "text"
+        },
+        {
           "datasource": {
             "type": "grafana-azure-monitor-datasource",
             "uid": "${am_ds}"
           },
-          "queryType": "Azure Monitor",
-          "refId": "A",
-          "subscription": "$sub",
-          "subscriptions": []
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "fixedColor": "text",
+                "mode": "fixed"
+              },
+              "mappings": [],
+              "noValue": "--",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Availability"
+                },
+                "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "targetBlank": true,
+                        "title": "",
+                        "url": "https://portal.azure.com/#@${tenant}/resource/subscriptions/${sub}/resourceGroups/${rg}/providers/microsoft.insights/components/${res}/availability"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 3,
+            "w": 2,
+            "x": 8,
+            "y": 1
+          },
+          "id": 40,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "vertical",
+            "percentChangeColorMode": "standard",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "/^Availability otel$/",
+              "values": false
+            },
+            "showPercentChange": false,
+            "text": {},
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "pluginVersion": "12.4.3",
+          "targets": [
+            {
+              "azureMonitor": {
+                "aggOptions": [],
+                "aggregation": "Average",
+                "allowedTimeGrainsMs": [
+                  60000,
+                  300000,
+                  900000,
+                  1800000,
+                  3600000,
+                  21600000,
+                  43200000,
+                  86400000
+                ],
+                "dimensionFilters": [],
+                "metricDefinition": "microsoft.insights/components",
+                "metricName": "availabilityResults/availabilityPercentage",
+                "metricNamespace": "microsoft.insights/components",
+                "resources": [
+                  {
+                    "resourceGroup": "$rg",
+                    "resourceName": "$res"
+                  }
+                ],
+                "timeGrain": "auto",
+                "timeGrains": [],
+                "top": "50"
+              },
+              "datasource": {
+                "type": "grafana-azure-monitor-datasource",
+                "uid": "${am_ds}"
+              },
+              "queryType": "Azure Monitor",
+              "refId": "A",
+              "subscription": "$sub",
+              "subscriptions": []
+            }
+          ],
+          "title": "Availability",
+          "type": "stat"
+        },
+        {
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 3,
+            "w": 3,
+            "x": 14,
+            "y": 1
+          },
+          "id": 42,
+          "options": {
+            "code": {
+              "language": "plaintext",
+              "showLineNumbers": false,
+              "showMiniMap": false
+            },
+            "content": "<a style=\"color: inherit;\" href=\"https://portal.azure.com/#@${tenant}/resource/subscriptions/${sub}/resourceGroups/${rg}/providers/microsoft.insights/components/${res}/applicationMap\" target=\"_blank\">\n<div style=\"padding-top: 20px;\">\n  <center><p style=\"position:center; color: #ff8c00; font-size:18px\">App map</p></center>\n  <center><p style=\"margin-top:0px;\">${res}</p></center>\n</div>\n</a>\n           ",
+            "mode": "html"
+          },
+          "pluginVersion": "12.4.3",
+          "title": "",
+          "type": "text"
         }
       ],
-      "title": "Availability",
-      "type": "stat"
-    },
-    {
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 3,
-        "x": 14,
-        "y": 1
-      },
-      "id": 42,
-      "options": {
-        "code": {
-          "language": "plaintext",
-          "showLineNumbers": false,
-          "showMiniMap": false
-        },
-        "content": "<a style=\"color: inherit;\" href=\"https://portal.azure.com/#@${tenant}/resource/subscriptions/${sub}/resourceGroups/${rg}/providers/microsoft.insights/components/${res}/applicationMap\" target=\"_blank\">\n<div style=\"padding-top: 20px;\">\n  <center><p style=\"position:center; color: #ff8c00; font-size:18px\">App map</p></center>\n  <center><p style=\"margin-top:0px;\">${res}</p></center>\n</div>\n</a>\n           ",
-        "mode": "html"
-      },
-      "pluginVersion": "12.4.3",
-      "title": "",
-      "type": "text"
+      "title": "Azure Portal Links",
+      "type": "row"
     },
     {
       "collapsed": false,
@@ -235,7 +236,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 4
+        "y": 1
       },
       "id": 54,
       "panels": [],
@@ -328,7 +329,7 @@
         "h": 10,
         "w": 6,
         "x": 0,
-        "y": 5
+        "y": 2
       },
       "id": 8,
       "links": [
@@ -403,7 +404,7 @@
         "h": 3,
         "w": 4,
         "x": 6,
-        "y": 5
+        "y": 2
       },
       "id": 14,
       "options": {
@@ -428,7 +429,7 @@
         "h": 3,
         "w": 2,
         "x": 10,
-        "y": 5
+        "y": 2
       },
       "id": 36,
       "options": {
@@ -453,7 +454,7 @@
         "h": 3,
         "w": 3,
         "x": 12,
-        "y": 5
+        "y": 2
       },
       "id": 17,
       "options": {
@@ -478,7 +479,7 @@
         "h": 3,
         "w": 3,
         "x": 15,
-        "y": 5
+        "y": 2
       },
       "id": 38,
       "options": {
@@ -503,7 +504,7 @@
         "h": 3,
         "w": 4,
         "x": 18,
-        "y": 5
+        "y": 2
       },
       "id": 18,
       "options": {
@@ -528,7 +529,7 @@
         "h": 3,
         "w": 2,
         "x": 22,
-        "y": 5
+        "y": 2
       },
       "id": 50,
       "options": {
@@ -611,7 +612,7 @@
         "h": 9,
         "w": 6,
         "x": 6,
-        "y": 8
+        "y": 5
       },
       "id": 2,
       "links": [
@@ -675,6 +676,233 @@
         }
       ],
       "title": "Failed requests",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "azure-monitor-oob"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "id": 55,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "ExceptionMessage"
+          }
+        ]
+      },
+      "pluginVersion": "12.4.3",
+      "targets": [
+        {
+          "azureLogAnalytics": {
+            "dashboardTime": true,
+            "mode": "raw",
+            "query": "exceptions\r\n| where timestamp >= $__timeFrom and timestamp < $__timeTo\r\n| extend Opid = operation_Id\r\n| extend ExceptionMessage = coalesce(outerMessage, innermostMessage, type)\r\n| extend Stack = coalesce(tostring(details[0].parsedStack), tostring(details), tostring(customDimensions[\"StackTrace\"]))\r\n| project timestamp, Opid, ExceptionMessage, Stack\r\n| order by timestamp desc\r\n| take 500",
+            "resources": [
+              "/subscriptions/899eaa20-616d-49f3-a37c-710fc197cd8a/resourceGroups/aksmctest/providers/microsoft.insights/components/otel"
+            ],
+            "resultFormat": "logs",
+            "timeColumn": "timestamp"
+          },
+          "azureMonitor": {
+            "allowedTimeGrainsMs": [],
+            "timeGrain": "auto"
+          },
+          "azureTraces": {
+            "operationId": "",
+            "resultFormat": "table",
+            "traceTypes": [
+              "availabilityResults",
+              "dependencies",
+              "customEvents",
+              "exceptions",
+              "pageViews",
+              "requests",
+              "traces"
+            ]
+          },
+          "queryType": "Azure Log Analytics",
+          "refId": "A",
+          "subscriptions": [
+            "899eaa20-616d-49f3-a37c-710fc197cd8a"
+          ]
+        }
+      ],
+      "title": "Exception",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "${am_ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "noValue": "--",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 0,
+        "y": 12
+      },
+      "id": 22,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "${res} | Availability test results count",
+          "url": "https://portal.azure.com/#blade/Microsoft_Azure_MonitoringMetrics/Metrics.ReactView/ResourceId/%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}/TimeContext/%7B%22relative%22%3A%7B%22duration%22%3A1800000%7D%2C%22options%22%3A%7B%22grain%22%3A1%2C%22showUTCTime%22%3Atrue%7D%7D/Chart/%7B%22metrics%22%3A%5B%7B%22resourceMetadata%22%3A%7B%22id%22%3A%22%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}%22%7D%2C%22name%22%3A%22availabilityResults%2Fcount%22%2C%22namespace%22%3A%22microsoft.insights%2Fcomponents%22%2C%22metricVisualization%22%3A%7B%22displayName%22%3A%22Availability%20test%20results%20count%22%2C%22color%22%3A%22%2347BDF5%22%7D%2C%22aggregationType%22%3A7%2C%22thresholds%22%3A%5B%5D%7D%5D%2C%22filterCollection%22%3A%7B%22filters%22%3A%5B%5D%7D%2C%22grouping%22%3Anull%2C%22visualization%22%3A%7B%22chartType%22%3A2%2C%22legendVisualization%22%3A%7B%22isVisible%22%3Atrue%2C%22position%22%3A2%2C%22hideSubtitle%22%3Afalse%7D%2C%22axisVisualization%22%3A%7B%22x%22%3A%7B%22isVisible%22%3Atrue%2C%22axisType%22%3A2%7D%2C%22y%22%3A%7B%22isVisible%22%3Atrue%2C%22axisType%22%3A1%7D%7D%2C%22disablePinning%22%3Atrue%7D%2C%22title%22%3A%22Availability%20test%20results%20count%22%2C%22timespan%22%3A%7B%22relative%22%3A%7B%22duration%22%3A1800000%7D%2C%22showUTCTime%22%3Atrue%2C%22grain%22%3A1%7D%2C%22ariaLabel%22%3Anull%7D/openInEditMode/true"
+        }
+      ],
+      "maxDataPoints": 150,
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.3",
+      "targets": [
+        {
+          "azureMonitor": {
+            "aggOptions": [],
+            "aggregation": "Count",
+            "allowedTimeGrainsMs": [
+              60000,
+              300000,
+              900000,
+              1800000,
+              3600000,
+              21600000,
+              43200000,
+              86400000
+            ],
+            "dimensionFilter": "*",
+            "dimensionFilters": [],
+            "metricDefinition": "microsoft.insights/components",
+            "metricName": "availabilityResults/count",
+            "metricNamespace": "microsoft.insights/components",
+            "resourceGroup": "$rg",
+            "resourceName": "$res",
+            "timeGrain": "auto",
+            "timeGrains": [],
+            "top": "50"
+          },
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "${am_ds}"
+          },
+          "queryType": "Azure Monitor",
+          "refId": "A",
+          "subscription": "$sub",
+          "subscriptions": []
+        }
+      ],
+      "title": "Availability test results count",
       "type": "timeseries"
     },
     {
@@ -748,7 +976,7 @@
         "h": 9,
         "w": 6,
         "x": 12,
-        "y": 8
+        "y": 13
       },
       "id": 4,
       "links": [
@@ -813,435 +1041,6 @@
         }
       ],
       "title": "Server response time",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "grafana-azure-monitor-datasource",
-        "uid": "${am_ds}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "fixedColor": "#5794F2",
-            "mode": "continuous-BlPu"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 16,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "normal"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "noValue": "--",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Page load network connect time"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "dark-blue",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Client processing time"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Send request time"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "purple",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Receiving response time"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 6,
-        "x": 18,
-        "y": 8
-      },
-      "id": 32,
-      "links": [
-        {
-          "targetBlank": true,
-          "title": "${res} | Average page load time breakdown",
-          "url": "https://portal.azure.com/#blade/Microsoft_Azure_MonitoringMetrics/Metrics.ReactView/ResourceId/%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}/TimeContext/%7B%22relative%22%3A%7B%22duration%22%3A1800000%7D%2C%22options%22%3A%7B%22grain%22%3A1%2C%22showUTCTime%22%3Atrue%7D%7D/Chart/%7B%22metrics%22%3A%5B%7B%22resourceMetadata%22%3A%7B%22id%22%3A%22%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}%22%7D%2C%22name%22%3A%22browserTimings%2FnetworkDuration%22%2C%22namespace%22%3A%22microsoft.insights%2Fcomponents%22%2C%22metricVisualization%22%3A%7B%22displayName%22%3A%22Page%20load%20network%20connect%20time%22%2C%22color%22%3A%22%237E58FF%22%7D%2C%22aggregationType%22%3A4%2C%22thresholds%22%3A%5B%5D%7D%2C%7B%22resourceMetadata%22%3A%7B%22id%22%3A%22%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}%22%7D%2C%22name%22%3A%22browserTimings%2FprocessingDuration%22%2C%22namespace%22%3A%22microsoft.insights%2Fcomponents%22%2C%22metricVisualization%22%3A%7B%22displayName%22%3A%22Client%20processing%20time%22%2C%22color%22%3A%22%2344F1C8%22%7D%2C%22aggregationType%22%3A4%2C%22thresholds%22%3A%5B%5D%7D%2C%7B%22resourceMetadata%22%3A%7B%22id%22%3A%22%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}%22%7D%2C%22name%22%3A%22browserTimings%2FsendDuration%22%2C%22namespace%22%3A%22microsoft.insights%2Fcomponents%22%2C%22metricVisualization%22%3A%7B%22displayName%22%3A%22Send%20request%20time%22%2C%22color%22%3A%22%23EB9371%22%7D%2C%22aggregationType%22%3A4%2C%22thresholds%22%3A%5B%5D%7D%2C%7B%22resourceMetadata%22%3A%7B%22id%22%3A%22%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}%22%7D%2C%22name%22%3A%22browserTimings%2FreceiveDuration%22%2C%22namespace%22%3A%22microsoft.insights%2Fcomponents%22%2C%22metricVisualization%22%3A%7B%22displayName%22%3A%22Receiving%20response%20time%22%2C%22color%22%3A%22%230672F1%22%7D%2C%22aggregationType%22%3A4%2C%22thresholds%22%3A%5B%5D%7D%5D%2C%22filterCollection%22%3A%7B%22filters%22%3A%5B%5D%7D%2C%22grouping%22%3Anull%2C%22visualization%22%3A%7B%22chartType%22%3A3%2C%22legendVisualization%22%3A%7B%22isVisible%22%3Atrue%2C%22position%22%3A2%2C%22hideSubtitle%22%3Afalse%7D%2C%22axisVisualization%22%3A%7B%22x%22%3A%7B%22isVisible%22%3Atrue%2C%22axisType%22%3A2%7D%2C%22y%22%3A%7B%22isVisible%22%3Atrue%2C%22axisType%22%3A1%7D%7D%2C%22disablePinning%22%3Atrue%7D%2C%22title%22%3A%22Average%20page%20load%20time%20breakdown%22%2C%22timespan%22%3A%7B%22relative%22%3A%7B%22duration%22%3A1800000%7D%2C%22showUTCTime%22%3Atrue%2C%22grain%22%3A1%7D%2C%22ariaLabel%22%3Anull%7D/openInEditMode/true"
-        }
-      ],
-      "maxDataPoints": 150,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.4.3",
-      "targets": [
-        {
-          "azureMonitor": {
-            "aggOptions": [],
-            "aggregation": "Average",
-            "allowedTimeGrainsMs": [
-              60000,
-              300000,
-              900000,
-              1800000,
-              3600000,
-              21600000,
-              43200000,
-              86400000
-            ],
-            "dimensionFilter": "*",
-            "dimensionFilters": [],
-            "metricDefinition": "Microsoft.Insights/components",
-            "metricName": "browserTimings/networkDuration",
-            "metricNamespace": "microsoft.insights/components",
-            "resourceGroup": "$rg",
-            "resourceName": "$res",
-            "timeGrain": "auto",
-            "timeGrains": [],
-            "top": "50"
-          },
-          "datasource": {
-            "type": "grafana-azure-monitor-datasource",
-            "uid": "${am_ds}"
-          },
-          "queryType": "Azure Monitor",
-          "refId": "Page load network connect time",
-          "subscription": "$sub",
-          "subscriptions": []
-        },
-        {
-          "azureMonitor": {
-            "aggOptions": [],
-            "aggregation": "Average",
-            "allowedTimeGrainsMs": [
-              60000,
-              300000,
-              900000,
-              1800000,
-              3600000,
-              21600000,
-              43200000,
-              86400000
-            ],
-            "dimensionFilter": "*",
-            "dimensionFilters": [],
-            "metricDefinition": "Microsoft.Insights/components",
-            "metricName": "browserTimings/processingDuration",
-            "metricNamespace": "microsoft.insights/components",
-            "resourceGroup": "$rg",
-            "resourceName": "$res",
-            "timeGrain": "auto",
-            "timeGrains": [],
-            "top": "50"
-          },
-          "datasource": {
-            "type": "grafana-azure-monitor-datasource",
-            "uid": "${am_ds}"
-          },
-          "queryType": "Azure Monitor",
-          "refId": "Client processing time",
-          "subscription": "$sub",
-          "subscriptions": []
-        },
-        {
-          "azureMonitor": {
-            "aggOptions": [],
-            "aggregation": "Average",
-            "allowedTimeGrainsMs": [
-              60000,
-              300000,
-              900000,
-              1800000,
-              3600000,
-              21600000,
-              43200000,
-              86400000
-            ],
-            "dimensionFilter": "*",
-            "dimensionFilters": [],
-            "metricDefinition": "Microsoft.Insights/components",
-            "metricName": "browserTimings/sendDuration",
-            "metricNamespace": "microsoft.insights/components",
-            "resourceGroup": "$rg",
-            "resourceName": "$res",
-            "timeGrain": "auto",
-            "timeGrains": [],
-            "top": "50"
-          },
-          "datasource": {
-            "type": "grafana-azure-monitor-datasource",
-            "uid": "${am_ds}"
-          },
-          "queryType": "Azure Monitor",
-          "refId": "Send request time",
-          "subscription": "$sub",
-          "subscriptions": []
-        },
-        {
-          "azureMonitor": {
-            "aggOptions": [],
-            "aggregation": "Average",
-            "allowedTimeGrainsMs": [
-              60000,
-              300000,
-              900000,
-              1800000,
-              3600000,
-              21600000,
-              43200000,
-              86400000
-            ],
-            "dimensionFilter": "*",
-            "dimensionFilters": [],
-            "metricDefinition": "Microsoft.Insights/components",
-            "metricName": "browserTimings/receiveDuration",
-            "metricNamespace": "microsoft.insights/components",
-            "resourceGroup": "$rg",
-            "resourceName": "$res",
-            "timeGrain": "auto",
-            "timeGrains": [],
-            "top": "50"
-          },
-          "datasource": {
-            "type": "grafana-azure-monitor-datasource",
-            "uid": "${am_ds}"
-          },
-          "queryType": "Azure Monitor",
-          "refId": "Receiving response time",
-          "subscription": "$sub",
-          "subscriptions": []
-        }
-      ],
-      "title": "Average page load time breakdown",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "grafana-azure-monitor-datasource",
-        "uid": "${am_ds}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "axisSoftMin": 0,
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "noValue": "--",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 6,
-        "x": 0,
-        "y": 15
-      },
-      "id": 22,
-      "links": [
-        {
-          "targetBlank": true,
-          "title": "${res} | Availability test results count",
-          "url": "https://portal.azure.com/#blade/Microsoft_Azure_MonitoringMetrics/Metrics.ReactView/ResourceId/%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}/TimeContext/%7B%22relative%22%3A%7B%22duration%22%3A1800000%7D%2C%22options%22%3A%7B%22grain%22%3A1%2C%22showUTCTime%22%3Atrue%7D%7D/Chart/%7B%22metrics%22%3A%5B%7B%22resourceMetadata%22%3A%7B%22id%22%3A%22%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}%22%7D%2C%22name%22%3A%22availabilityResults%2Fcount%22%2C%22namespace%22%3A%22microsoft.insights%2Fcomponents%22%2C%22metricVisualization%22%3A%7B%22displayName%22%3A%22Availability%20test%20results%20count%22%2C%22color%22%3A%22%2347BDF5%22%7D%2C%22aggregationType%22%3A7%2C%22thresholds%22%3A%5B%5D%7D%5D%2C%22filterCollection%22%3A%7B%22filters%22%3A%5B%5D%7D%2C%22grouping%22%3Anull%2C%22visualization%22%3A%7B%22chartType%22%3A2%2C%22legendVisualization%22%3A%7B%22isVisible%22%3Atrue%2C%22position%22%3A2%2C%22hideSubtitle%22%3Afalse%7D%2C%22axisVisualization%22%3A%7B%22x%22%3A%7B%22isVisible%22%3Atrue%2C%22axisType%22%3A2%7D%2C%22y%22%3A%7B%22isVisible%22%3Atrue%2C%22axisType%22%3A1%7D%7D%2C%22disablePinning%22%3Atrue%7D%2C%22title%22%3A%22Availability%20test%20results%20count%22%2C%22timespan%22%3A%7B%22relative%22%3A%7B%22duration%22%3A1800000%7D%2C%22showUTCTime%22%3Atrue%2C%22grain%22%3A1%7D%2C%22ariaLabel%22%3Anull%7D/openInEditMode/true"
-        }
-      ],
-      "maxDataPoints": 150,
-      "options": {
-        "legend": {
-          "calcs": [
-            "sum"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.4.3",
-      "targets": [
-        {
-          "azureMonitor": {
-            "aggOptions": [],
-            "aggregation": "Count",
-            "allowedTimeGrainsMs": [
-              60000,
-              300000,
-              900000,
-              1800000,
-              3600000,
-              21600000,
-              43200000,
-              86400000
-            ],
-            "dimensionFilter": "*",
-            "dimensionFilters": [],
-            "metricDefinition": "microsoft.insights/components",
-            "metricName": "availabilityResults/count",
-            "metricNamespace": "microsoft.insights/components",
-            "resourceGroup": "$rg",
-            "resourceName": "$res",
-            "timeGrain": "auto",
-            "timeGrains": [],
-            "top": "50"
-          },
-          "datasource": {
-            "type": "grafana-azure-monitor-datasource",
-            "uid": "${am_ds}"
-          },
-          "queryType": "Azure Monitor",
-          "refId": "A",
-          "subscription": "$sub",
-          "subscriptions": []
-        }
-      ],
-      "title": "Availability test results count",
       "type": "timeseries"
     },
     {
@@ -1338,7 +1137,7 @@
         "h": 10,
         "w": 6,
         "x": 6,
-        "y": 17
+        "y": 14
       },
       "id": 24,
       "links": [
@@ -1515,8 +1314,8 @@
       "gridPos": {
         "h": 10,
         "w": 6,
-        "x": 12,
-        "y": 17
+        "x": 0,
+        "y": 22
       },
       "id": 28,
       "links": [
@@ -1631,143 +1430,6 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "#ec008c",
-            "mode": "fixed"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "showValues": false,
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "noValue": "--",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 6,
-        "x": 6,
-        "y": 27
-      },
-      "id": 26,
-      "links": [
-        {
-          "targetBlank": true,
-          "title": "${res} | Average process I/O rate",
-          "url": "https://portal.azure.com/#blade/Microsoft_Azure_MonitoringMetrics/Metrics.ReactView/ResourceId/%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}/TimeContext/%7B%22relative%22%3A%7B%22duration%22%3A1800000%7D%2C%22options%22%3A%7B%22grain%22%3A1%2C%22showUTCTime%22%3Atrue%7D%7D/Chart/%7B%22metrics%22%3A%5B%7B%22resourceMetadata%22%3A%7B%22id%22%3A%22%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}%22%7D%2C%22name%22%3A%22performanceCounters%2FprocessIOBytesPerSecond%22%2C%22namespace%22%3A%22microsoft.insights%2Fcomponents%22%2C%22metricVisualization%22%3A%7B%22displayName%22%3A%22Process%20IO%20rate%22%2C%22color%22%3A%22%2347BDF5%22%7D%2C%22aggregationType%22%3A4%2C%22thresholds%22%3A%5B%5D%7D%5D%2C%22filterCollection%22%3A%7B%22filters%22%3A%5B%5D%7D%2C%22grouping%22%3Anull%2C%22visualization%22%3A%7B%22chartType%22%3A2%2C%22legendVisualization%22%3A%7B%22isVisible%22%3Atrue%2C%22position%22%3A2%2C%22hideSubtitle%22%3Afalse%7D%2C%22axisVisualization%22%3A%7B%22x%22%3A%7B%22isVisible%22%3Atrue%2C%22axisType%22%3A2%7D%2C%22y%22%3A%7B%22isVisible%22%3Atrue%2C%22axisType%22%3A1%7D%7D%2C%22disablePinning%22%3Atrue%7D%2C%22title%22%3A%22Average%20process%20I%2FO%20rate%22%2C%22timespan%22%3A%7B%22relative%22%3A%7B%22duration%22%3A1800000%7D%2C%22showUTCTime%22%3Atrue%2C%22grain%22%3A1%7D%2C%22ariaLabel%22%3Anull%7D/openInEditMode/true"
-        }
-      ],
-      "maxDataPoints": 100,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.4.3",
-      "targets": [
-        {
-          "azureMonitor": {
-            "aggOptions": [],
-            "aggregation": "Average",
-            "allowedTimeGrainsMs": [
-              60000,
-              300000,
-              900000,
-              1800000,
-              3600000,
-              21600000,
-              43200000,
-              86400000
-            ],
-            "customNamespace": "Azure.ApplicationInsights",
-            "dimensionFilters": [],
-            "metricDefinition": "Microsoft.Insights/components",
-            "metricName": "system.disk.io",
-            "metricNamespace": "microsoft.insights/components",
-            "resources": [
-              {
-                "resourceGroup": "$rg",
-                "resourceName": "$res"
-              }
-            ],
-            "timeGrain": "auto",
-            "timeGrains": [],
-            "top": "100"
-          },
-          "datasource": {
-            "type": "grafana-azure-monitor-datasource",
-            "uid": "${am_ds}"
-          },
-          "queryType": "Azure Monitor",
-          "refId": "A",
-          "subscription": "$sub",
-          "subscriptions": []
-        }
-      ],
-      "title": "Average process I/O rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "grafana-azure-monitor-datasource",
-        "uid": "${am_ds}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
             "fixedColor": "#7e58ff",
             "mode": "fixed"
           },
@@ -1828,8 +1490,8 @@
       "gridPos": {
         "h": 10,
         "w": 6,
-        "x": 12,
-        "y": 27
+        "x": 6,
+        "y": 24
       },
       "id": 30,
       "links": [
@@ -1898,10 +1560,172 @@
       ],
       "title": "Average available memory",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "grafana-azure-monitor-datasource",
+        "uid": "${am_ds}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#ec008c",
+            "mode": "fixed"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": true,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "noValue": "--",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "system.disk.io otel"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": true,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 6,
+        "y": 34
+      },
+      "id": 26,
+      "links": [
+        {
+          "targetBlank": true,
+          "title": "${res} | Average process I/O rate",
+          "url": "https://portal.azure.com/#blade/Microsoft_Azure_MonitoringMetrics/Metrics.ReactView/ResourceId/%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}/TimeContext/%7B%22relative%22%3A%7B%22duration%22%3A1800000%7D%2C%22options%22%3A%7B%22grain%22%3A1%2C%22showUTCTime%22%3Atrue%7D%7D/Chart/%7B%22metrics%22%3A%5B%7B%22resourceMetadata%22%3A%7B%22id%22%3A%22%2Fsubscriptions%2F${sub}%2FresourceGroups%2F${rg}%2Fproviders%2Fmicrosoft.insights%2Fcomponents%2F${res}%22%7D%2C%22name%22%3A%22performanceCounters%2FprocessIOBytesPerSecond%22%2C%22namespace%22%3A%22microsoft.insights%2Fcomponents%22%2C%22metricVisualization%22%3A%7B%22displayName%22%3A%22Process%20IO%20rate%22%2C%22color%22%3A%22%2347BDF5%22%7D%2C%22aggregationType%22%3A4%2C%22thresholds%22%3A%5B%5D%7D%5D%2C%22filterCollection%22%3A%7B%22filters%22%3A%5B%5D%7D%2C%22grouping%22%3Anull%2C%22visualization%22%3A%7B%22chartType%22%3A2%2C%22legendVisualization%22%3A%7B%22isVisible%22%3Atrue%2C%22position%22%3A2%2C%22hideSubtitle%22%3Afalse%7D%2C%22axisVisualization%22%3A%7B%22x%22%3A%7B%22isVisible%22%3Atrue%2C%22axisType%22%3A2%7D%2C%22y%22%3A%7B%22isVisible%22%3Atrue%2C%22axisType%22%3A1%7D%7D%2C%22disablePinning%22%3Atrue%7D%2C%22title%22%3A%22Average%20process%20I%2FO%20rate%22%2C%22timespan%22%3A%7B%22relative%22%3A%7B%22duration%22%3A1800000%7D%2C%22showUTCTime%22%3Atrue%2C%22grain%22%3A1%7D%2C%22ariaLabel%22%3Anull%7D/openInEditMode/true"
+        }
+      ],
+      "maxDataPoints": 100,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.3",
+      "targets": [
+        {
+          "azureMonitor": {
+            "aggOptions": [],
+            "aggregation": "Average",
+            "allowedTimeGrainsMs": [
+              60000,
+              300000,
+              900000,
+              1800000,
+              3600000,
+              21600000,
+              43200000,
+              86400000
+            ],
+            "customNamespace": "Azure.ApplicationInsights",
+            "dimensionFilters": [],
+            "metricDefinition": "Microsoft.Insights/components",
+            "metricName": "system.disk.io",
+            "metricNamespace": "microsoft.insights/components",
+            "resources": [
+              {
+                "resourceGroup": "$rg",
+                "resourceName": "$res"
+              }
+            ],
+            "timeGrain": "auto",
+            "timeGrains": [],
+            "top": "100"
+          },
+          "datasource": {
+            "type": "grafana-azure-monitor-datasource",
+            "uid": "${am_ds}"
+          },
+          "queryType": "Azure Monitor",
+          "refId": "A",
+          "subscription": "$sub",
+          "subscriptions": []
+        }
+      ],
+      "title": "Average process I/O rate",
+      "type": "timeseries"
     }
   ],
   "preload": false,
-  "refresh": "",
+  "refresh": "auto",
   "schemaVersion": 42,
   "tags": [
     "Azure-managed"
@@ -2039,6 +1863,6 @@
   "timezone": "browser",
   "title": "otel",
   "uid": "bafe290ca14045",
-  "version": 8,
+  "version": 11,
   "weekStart": ""
 }
