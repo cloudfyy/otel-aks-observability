@@ -9,7 +9,7 @@
 namespace otelapicpp
 {
 inline constexpr const char kTelemetryInstrumentationName[] = "otelapicpp";
-inline constexpr const char kTelemetryVersion[] = "1.0.7";
+inline constexpr const char kTelemetryVersion[] = "1.0.8";
 inline constexpr const char kDefaultServiceNamespace[] = "apps-dev";
 inline constexpr const char kDefaultDeploymentEnvironment[] = "dev";
 
