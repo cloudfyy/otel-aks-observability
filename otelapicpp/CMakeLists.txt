@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(otelapicpp VERSION 1.0.5 LANGUAGES CXX)
+project(otelapicpp VERSION 1.0.7 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -70,4 +70,19 @@ link_first_existing_target(otelapicpp
     opentelemetry-cpp::otlp_http_client
     opentelemetry-cpp::opentelemetry_exporter_otlp_http_client
     opentelemetry::exporter_otlp_http_client
+)
+
+link_first_existing_target(otelapicpp
+  REQUIRED_LABEL "OpenTelemetry Logs SDK"
+  CANDIDATES
+    opentelemetry-cpp::logs
+    opentelemetry::logs
+)
+
+link_first_existing_target(otelapicpp
+  REQUIRED_LABEL "OTLP HTTP log exporter"
+  CANDIDATES
+    opentelemetry-cpp::otlp_http_log_record_exporter
+    opentelemetry-cpp::opentelemetry_exporter_otlp_http_log
+    opentelemetry::exporter_otlp_http_log
 )

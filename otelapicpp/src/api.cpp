@@ -3,6 +3,7 @@
 #include <array>
 #include <exception>
 #include <iostream>
+#include <map>
 #include <string>
 #include <typeinfo>
 
@@ -10,11 +11,14 @@
 
 #include <opentelemetry/context/context.h>
 #include <opentelemetry/context/propagation/text_map_propagator.h>
+#include <opentelemetry/logs/provider.h>
+#include <opentelemetry/logs/severity.h>
 #include <opentelemetry/nostd/span.h>
 #include <opentelemetry/trace/propagation/http_trace_context.h>
 #include <opentelemetry/trace/scope.h>
 
 #include "otelapicpp/exceptions.h"
+#include "otelapicpp/telemetry.h"
 #include "otelapicpp/weather.h"
 
 namespace trace_api = opentelemetry::trace;
@@ -96,6 +100,19 @@ void EmitApiStartLogAndEvent(
        {"trace.id", trace_id},
        {"span.id", span_id},
        {"traceparent", traceparent.empty() ? "" : traceparent}});
+
+    auto logger = GetLogger();
+    std::map<std::string, std::string> attributes = {
+      {"api.operation", operation},
+      {"http.route", route},
+      {"trace.id", trace_id},
+      {"span.id", span_id},
+      {"traceparent", traceparent}};
+    logger->EmitLogRecord(
+      opentelemetry::logs::Severity::kInfo,
+      "api.request.start",
+      attributes,
+      span_context);
 }
 
 void RecordException(
