@@ -56,19 +56,36 @@ void AddCorsHeaders(crow::response &response, const std::string &allowed_origins
 
 void RecordException(
     const opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> &span,
-    const std::exception &ex)
+    const std::exception &ex,
+    const std::string &method_name)
 {
   const auto *custom_exception = dynamic_cast<const CustomTestException *>(&ex);
   const auto exception_type = std::string(
       custom_exception != nullptr ? "CustomTestException" : typeid(ex).name());
   const auto message = std::string(ex.what());
+    const auto stacktrace =
+      (custom_exception != nullptr && !custom_exception->throw_stacktrace().empty())
+        ? custom_exception->throw_stacktrace()
+        : CaptureStackTrace();
+
   span->SetAttribute("exception.type", exception_type);
   span->SetAttribute("exception.message", message);
+  span->SetAttribute("exception.assembly", "otelapicpp");
+  span->SetAttribute("exception.method", method_name);
+  if (!stacktrace.empty())
+  {
+    span->SetAttribute("exception.stacktrace", stacktrace);
+  }
+
   span->AddEvent(
       "exception",
       {{"exception.type", exception_type},
        {"exception.message", message},
-       {"exception.escaped", false}});
+      {"exception.escaped", false},
+      {"exception.assembly", "otelapicpp"},
+      {"exception.method", method_name},
+      {"exception.stack.origin", custom_exception != nullptr ? "throw" : "catch"},
+      {"exception.stacktrace", stacktrace}});
   span->SetStatus(opentelemetry::trace::StatusCode::kError, message);
 }
 
@@ -120,7 +137,7 @@ void RegisterRoutes(
     }
     catch (const std::exception &ex)
     {
-      RecordException(span, ex);
+      RecordException(span, ex, "GET /weatherforecast");
       response.code = 500;
       response.body = R"({"message":"Unexpected error while building weather forecast."})";
     }
@@ -148,7 +165,7 @@ void RegisterRoutes(
     }
     catch (const std::exception &ex)
     {
-      RecordException(span, ex);
+      RecordException(span, ex, "GET /weatherforecast/throw-custom-exception");
       response.code = 500;
       response.body = nlohmann::json({{"message", ex.what()}}).dump();
     }
@@ -172,7 +189,7 @@ void RegisterRoutes(
     catch (const std::exception &ex)
     {
       std::cerr << "[Handled Exception] " << ex.what() << std::endl;
-      RecordException(span, ex);
+      RecordException(span, ex, "GET /weatherforecast/throw-and-catch-exception");
     }
 
     crow::response response(200);
