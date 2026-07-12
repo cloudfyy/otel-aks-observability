@@ -42,7 +42,7 @@ void InitTracerProvider(const AppConfig &config)
   auto resource_attrs = resource_sdk::ResourceAttributes{
       {"service.name", config.otel_service_name},
       {"service.namespace", "apps-dev"},
-      {"service.version", "1.0.0"},
+      {"service.version", "1.0.1"},
       {"deployment.environment.name", "dev"}};
 
   if (!config.otel_resource_attributes.empty())
@@ -82,6 +82,6 @@ void InitTracerProvider(const AppConfig &config)
 opentelemetry::nostd::shared_ptr<trace_api::Tracer> GetTracer()
 {
   auto provider = trace_api::Provider::GetTracerProvider();
-  return provider->GetTracer("otelapicpp", "1.0.0");
+  return provider->GetTracer("otelapicpp", "1.0.1");
 }
 } // namespace otelapicpp

@@ -6,12 +6,11 @@
 
 #include <nlohmann/json.hpp>
 
-#include <opentelemetry/context/runtime_context.h>
+#include <opentelemetry/context/context.h>
 #include <opentelemetry/context/propagation/text_map_propagator.h>
 #include <opentelemetry/trace/propagation/http_trace_context.h>
 #include <opentelemetry/trace/scope.h>
 
-#include "otelapicpp/exceptions.h"
 #include "otelapicpp/weather.h"
 
 namespace trace_api = opentelemetry::trace;
@@ -61,10 +60,8 @@ opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> StartServerSpan(
 {
   opentelemetry::trace::propagation::HttpTraceContext propagator;
   CrowRequestCarrier carrier(request);
-    auto current_context = opentelemetry::context::RuntimeContext::GetCurrent();
-  auto parent_context = propagator.Extract(
-      carrier,
-      current_context);
+  opentelemetry::context::Context root_context;
+  auto parent_context = propagator.Extract(carrier, root_context);
 
   opentelemetry::trace::StartSpanOptions options;
   options.parent = parent_context;
@@ -130,7 +127,7 @@ void RegisterRoutes(
     try
     {
       std::cout << "C++ custom exception test endpoint called" << std::endl;
-      throw CustomTestException("This is a C++ custom exception for testing.");
+      ThrowCustomTestException();
     }
     catch (const std::exception &ex)
     {

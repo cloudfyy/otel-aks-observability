@@ -76,6 +76,11 @@ nlohmann::json BuildForecastPayload()
   return result;
 }
 
+void ThrowCustomTestException()
+{
+  throw CustomTestException("This is a C++ custom exception for testing.");
+}
+
 void ThrowNestedTestException()
 {
   ThrowLevel1();
