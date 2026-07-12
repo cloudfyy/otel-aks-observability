@@ -239,7 +239,7 @@ metadata:
 - Real ACR, subscription, and publish profile values are not committed. For local publish settings, copy `otelapidemo/otelapidemo/Properties/PublishProfiles/acr.pubxml.example` to a local `.pubxml` file and fill in the values.
 - For Python, business logs still require application logging output; auto-instrumentation enables OTLP log export but does not create business log messages by itself.
 
-## Option B Implementation Details
+## Tail Sampling Implementation Details
 
 - `load_balancing/gateway` is a built-in OpenTelemetry Collector Contrib exporter; `load_balancing` is the exporter type, and `gateway` is the local instance name in this configuration.
 - The traces pipeline sets `routing_key: traceID` to route by the native TraceID field on OTLP spans. TraceID is not a resource attribute and does not require application-side injection; the exporter consistently hashes each span's TraceID so spans from the same trace go to the same gateway Pod.

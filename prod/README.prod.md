@@ -256,7 +256,7 @@ metadata:
 - 真实 ACR、订阅与发布配置不提交到仓库；如需本地发布配置，可从 `otelapidemo/otelapidemo/Properties/PublishProfiles/acr.pubxml.example` 复制为本地 `.pubxml` 文件后填写。
 - 对 Python 来说，业务日志仍需应用主动输出；自动注入可开启 OTLP 日志导出，但不会自动产生日志内容。
 
-## 方案 B 关键实现细节
+## Tail Sampling 关键实现细节
 
 - `load_balancing/gateway` 是 OpenTelemetry Collector Contrib 内置 exporter；`load_balancing` 是 exporter 类型，`gateway` 是本配置中的实例名。
 - traces pipeline 通过 `routing_key: traceID` 指定按 OTLP span 原生 TraceID 路由。TraceID 不是 resource attribute，也不需要应用额外注入；exporter 会对 span 的 TraceID 做一致性哈希，并把同一条 trace 的 span 发到同一个 gateway Pod。
