@@ -26,3 +26,10 @@ spec:
                 name: otelapidemo-python
                 port:
                   name: http
+          - path: /cpp(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: otelapidemo-cpp
+                port:
+                  name: http

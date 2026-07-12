@@ -1,0 +1,15 @@
+{
+  "name": "otelapicpp",
+  "version-string": "1.0.0",
+  "dependencies": [
+    "crow",
+    "nlohmann-json",
+    {
+      "name": "opentelemetry-cpp",
+      "default-features": false,
+      "features": [
+        "otlp-http"
+      ]
+    }
+  ]
+}

@@ -27,6 +27,7 @@ if (-not $AcrLoginServer) {
 $manifestFiles = @(
   "otelapidemo-dotnet.yaml",
   "otelapidemo-python.yaml",
+  "otelapidemo-cpp.yaml",
   "otel-ui.yaml",
   "otelapidemo-ingress.yaml",
   "otel-ui-ingress.yaml",
