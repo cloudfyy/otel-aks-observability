@@ -1,6 +1,7 @@
 resources:
   - otelapidemo-dotnet.yaml
   - otelapidemo-python.yaml
+  - otelapidemo-cpp.yaml
   - otel-ui.yaml
   - otelapidemo-ingress.prod.yaml
   - otel-ui-ingress.prod.yaml

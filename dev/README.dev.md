@@ -10,7 +10,7 @@
 - otelapidemo-dotnet.yaml：.NET 示例应用部署清单。
 - otelapidemo-python.yaml：Python 示例应用部署清单。
 - otel-ui.yaml：React UI 部署清单。
-- otelapidemo-ingress.yaml：API 路由 Ingress（`/dotnet/*`、`/python/*`）。
+- otelapidemo-ingress.yaml：API 路由 Ingress（`/dotnet/*`、`/python/*`、`/cpp/*`）。
 - otel-ui-ingress.yaml：UI 根路径 Ingress（`/`）。
 - otel-ui-otlp-ingress.yaml：UI 同源 OTLP 入口（`/otlp/*`，转发到 Collector 4318）。
 - otel-ui-otlp-service.yaml：同 namespace OTLP 代理 Service（ExternalName，指向 `observability` 中的 Collector）。
@@ -32,6 +32,7 @@ flowchart LR
   subgraph Apps[apps-dev]
     DotNet[.NET API]
     Python[Python API]
+    Cpp[C++ API]
     UiSvc[otel-ui Service]
     ProxySvc[otel-ui-otlp-proxy Service\nExternalName]
     UiIngress[otel-ui Ingress]
@@ -47,8 +48,10 @@ flowchart LR
   Bootstrap --> OtlpIngress --> ProxySvc --> Collector
   UiIngress --> DotNet
   UiIngress --> Python
+  UiIngress --> Cpp
   DotNet --> Collector
   Python --> Collector
+  Cpp --> Collector
   Collector --> Azure
 ```
 
@@ -71,8 +74,8 @@ flowchart LR
 6. 应用 Instrumentation CRD。
 7. 检查应用清单中的 `<ACR_LOGIN_SERVER>` 是否仍为占位符，并先替换为真实值。
 8. 部署 `.NET`、Python 与 React UI 示例应用。
-9. 获取 UI Ingress 地址，并通过统一入口验证 `/`、`/dotnet/*`、`/python/*`，同时确认 `/otlp/v1/traces` 通过 `otel-ui-otlp-proxy` 正常转发。
-10. 分别对 `.NET` 与 Python 示例应用进行一轮压力测试，触发 traces、logs 与 metrics。
+9. 获取 UI Ingress 地址，并通过统一入口验证 `/`、`/dotnet/*`、`/python/*`、`/cpp/*`，同时确认 `/otlp/v1/traces` 通过 `otel-ui-otlp-proxy` 正常转发。
+10. 分别对 `.NET`、Python 与 C++ 示例应用进行一轮压力测试，触发 traces、logs 与 metrics。
 11. 验证 Collector 管道计数器、Kubernetes 资源属性与遥测上报。
 
 ## Ingress 安全模板（可选）
@@ -127,6 +130,7 @@ fi
 curl -fsS "http://${ingress_host}/" > /dev/null
 curl -fsS "http://${ingress_host}/dotnet/weatherforecast" > /dev/null
 curl -fsS "http://${ingress_host}/python/weatherforecast" > /dev/null
+curl -fsS "http://${ingress_host}/cpp/weatherforecast" > /dev/null
 
 # 9) 进行一轮压力测试（先测 .NET 示例应用）
 seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${ingress_host}/dotnet/weatherforecast" > /dev/null
@@ -134,13 +138,17 @@ seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${ingress_host}/dotnet/weatherfor
 # 9b) 对 Python 示例应用进行压力测试
 seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${ingress_host}/python/weatherforecast" > /dev/null
 
-# 9c) 异常接口压测（推荐，覆盖 .NET 与 Python，预期返回 500）
+# 9c) 对 C++ 示例应用进行压力测试
+seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${ingress_host}/cpp/weatherforecast" > /dev/null
+
+# 9d) 异常接口压测（推荐，覆盖 .NET、Python 与 C++，预期返回 500）
 req=100
 conc=20
 timeout=8
 
 dotnet_exception_url="http://${ingress_host}/dotnet/WeatherForecast/throw-custom-exception"
 python_exception_url="http://${ingress_host}/python/throw-custom-exception"
+cpp_exception_url="http://${ingress_host}/cpp/weatherforecast/throw-custom-exception"
 
 echo "[dotnet exception] ${dotnet_exception_url}"
 seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$dotnet_exception_url" |
@@ -150,9 +158,14 @@ echo "[python exception] ${python_exception_url}"
 seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$python_exception_url" |
   sort | uniq -c
 
-# 9d) 新接口压测（throw-and-catch-exception，覆盖 .NET 与 Python，预期返回 200）
+echo "[cpp exception] ${cpp_exception_url}"
+seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$cpp_exception_url" |
+  sort | uniq -c
+
+# 9e) 新接口压测（throw-and-catch-exception，覆盖 .NET、Python 与 C++，预期返回 200）
 dotnet_handled_exception_url="http://${ingress_host}/dotnet/WeatherForecast/throw-and-catch-exception"
 python_handled_exception_url="http://${ingress_host}/python/throw-and-catch-exception"
+cpp_handled_exception_url="http://${ingress_host}/cpp/weatherforecast/throw-and-catch-exception"
 
 echo "[dotnet handled exception] ${dotnet_handled_exception_url}"
 seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$dotnet_handled_exception_url" |
@@ -160,6 +173,10 @@ seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_
 
 echo "[python handled exception] ${python_handled_exception_url}"
 seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$python_handled_exception_url" |
+  sort | uniq -c
+
+echo "[cpp handled exception] ${cpp_handled_exception_url}"
+seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$cpp_handled_exception_url" |
   sort | uniq -c
 
 # 10) 验证基础状态
@@ -213,6 +230,7 @@ if ([string]::IsNullOrWhiteSpace($ingressHost)) {
 Invoke-WebRequest -Uri "http://${ingressHost}/" -UseBasicParsing | Out-Null
 Invoke-WebRequest -Uri "http://${ingressHost}/dotnet/weatherforecast" -UseBasicParsing | Out-Null
 Invoke-WebRequest -Uri "http://${ingressHost}/python/weatherforecast" -UseBasicParsing | Out-Null
+Invoke-WebRequest -Uri "http://${ingressHost}/cpp/weatherforecast" -UseBasicParsing | Out-Null
 
 # 9) 进行一轮压力测试（先测 .NET 示例应用）
 1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${ingressHost}/dotnet/weatherforecast" -UseBasicParsing | Out-Null }
@@ -220,13 +238,17 @@ Invoke-WebRequest -Uri "http://${ingressHost}/python/weatherforecast" -UseBasicP
 # 9b) 对 Python 示例应用进行压力测试
 1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${ingressHost}/python/weatherforecast" -UseBasicParsing | Out-Null }
 
-# 9c) 异常接口压测（推荐，覆盖 .NET 与 Python，预期返回 500）
+# 9c) 对 C++ 示例应用进行压力测试
+1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${ingressHost}/cpp/weatherforecast" -UseBasicParsing | Out-Null }
+
+# 9d) 异常接口压测（推荐，覆盖 .NET、Python 与 C++，预期返回 500）
 $req = 100
 $conc = 20
 $timeoutSec = 8
 
 $dotnetExceptionUrl = "http://${ingressHost}/dotnet/WeatherForecast/throw-custom-exception"
 $pythonExceptionUrl = "http://${ingressHost}/python/throw-custom-exception"
+$cppExceptionUrl = "http://${ingressHost}/cpp/weatherforecast/throw-custom-exception"
 
 Write-Host "[dotnet exception] $dotnetExceptionUrl"
 $dotnetCodes = 1..$req | ForEach-Object -Parallel {
@@ -242,9 +264,17 @@ $pythonCodes = 1..$req | ForEach-Object -Parallel {
 } -ThrottleLimit $conc
 $pythonCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
 
-# 9d) 新接口压测（throw-and-catch-exception，覆盖 .NET 与 Python，预期返回 200）
+Write-Host "[cpp exception] $cppExceptionUrl"
+$cppCodes = 1..$req | ForEach-Object -Parallel {
+  $status = & curl.exe -L -sS -o NUL -w "%{http_code}" --max-time $using:timeoutSec $using:cppExceptionUrl
+  if ([string]::IsNullOrWhiteSpace($status)) { "000" } else { $status.Trim() }
+} -ThrottleLimit $conc
+$cppCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
+
+# 9e) 新接口压测（throw-and-catch-exception，覆盖 .NET、Python 与 C++，预期返回 200）
 $dotnetHandledExceptionUrl = "http://${ingressHost}/dotnet/WeatherForecast/throw-and-catch-exception"
 $pythonHandledExceptionUrl = "http://${ingressHost}/python/throw-and-catch-exception"
+$cppHandledExceptionUrl = "http://${ingressHost}/cpp/weatherforecast/throw-and-catch-exception"
 
 Write-Host "[dotnet handled exception] $dotnetHandledExceptionUrl"
 $dotnetHandledCodes = 1..$req | ForEach-Object -Parallel {
@@ -259,6 +289,13 @@ $pythonHandledCodes = 1..$req | ForEach-Object -Parallel {
   if ([string]::IsNullOrWhiteSpace($status)) { "000" } else { $status.Trim() }
 } -ThrottleLimit $conc
 $pythonHandledCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
+
+Write-Host "[cpp handled exception] $cppHandledExceptionUrl"
+$cppHandledCodes = 1..$req | ForEach-Object -Parallel {
+  $status = & curl.exe -L -sS -o NUL -w "%{http_code}" --max-time $using:timeoutSec $using:cppHandledExceptionUrl
+  if ([string]::IsNullOrWhiteSpace($status)) { "000" } else { $status.Trim() }
+} -ThrottleLimit $conc
+$cppHandledCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
 
 # 10) 验证基础状态
 kubectl get pods -n observability
@@ -307,11 +344,11 @@ metadata:
 - 现有 dev values 同时包含 debug 与 azuremonitor exporter，便于联调与排障。
 - 当前 dev Collector 已启用 `k8sattributes` processor，用于自动补充 `k8s.*` 资源属性；应用侧 `OTEL_RESOURCE_ATTRIBUTES` 继续保留环境等静态标签。
 - 当前 dev Collector 已启用 `file_log` 接收器采集节点上的容器日志文件（`/var/log/pods/.../*.log`）。
-- 当前开发环境通过统一 Ingress 对外暴露：`/` 对应 React UI，`/dotnet/*` 转发到 `.NET` API，`/python/*` 转发到 Python API。
+- 当前开发环境通过统一 Ingress 对外暴露：`/` 对应 React UI，`/dotnet/*` 转发到 `.NET` API，`/python/*` 转发到 Python API，`/cpp/*` 转发到 C++ API。
 - `dev/deploy-apps.ps1` 与 `dev/deploy-apps.sh` 会同时部署 `.NET`、Python、React UI，以及两个 Ingress 资源。
 - 当前开发示例镜像版本基线：`.NET`=`1.0.4`，Python=`1.0.4`，UI=`1.0.3`。
-- 压力测试命令现在同时覆盖 `.NET` 与 Python 示例应用的 `/weatherforecast` 接口，并统一通过 Ingress 入口访问。
-- 异常接口压测命令已内联在本文档第 9c 与 9d 步骤中：`throw-custom-exception` 预期返回 500，`throw-and-catch-exception` 预期返回 200。
+- 压力测试命令现在同时覆盖 `.NET`、Python 与 C++ 示例应用的 `/weatherforecast` 接口，并统一通过 Ingress 入口访问。
+- 异常接口压测命令已内联在本文档第 9d 与 9e 步骤中：`throw-custom-exception` 预期返回 500，`throw-and-catch-exception` 预期返回 200。
 - 若 Python 公网地址压测出现 302/200 混合，且响应头中出现外部跳转，这通常是公网链路侧重定向，不是应用代码或 AKS Pod 本身返回。
 - 这类公网重定向无法在应用代码中“关闭”；应通过网络侧治理（企业网络/运营商白名单、误报申诉）或访问路径改造处理。
 - 推荐做法是将应用 Service 收敛为 ClusterIP，通过 Ingress + 域名 + HTTPS 对外暴露，避免直接使用裸公网 IP。

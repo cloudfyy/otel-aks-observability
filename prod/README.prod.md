@@ -16,9 +16,10 @@
 - inst-crd-python.prod.yaml：生产 Python 自动注入 Instrumentation CRD。
 - apps/otelapidemo-dotnet.yaml：生产 .NET 示例应用清单（已内置生产注解）。
 - apps/otelapidemo-python.yaml：生产 Python 示例应用清单（已内置生产注解）。
+- apps/otelapidemo-cpp.yaml：生产 C++ 示例应用清单（已内置生产注解）。
 - apps/otel-ui.yaml：生产 React UI 清单。
 - apps/kustomization.yaml：生产示例应用 Kustomize 入口（替换 ACR 镜像地址）。
-- apps/otelapidemo-ingress.prod.yaml：生产 API 路由 Ingress（`/dotnet/*` 与 `/python/*`）。
+- apps/otelapidemo-ingress.prod.yaml：生产 API 路由 Ingress（`/dotnet/*`、`/python/*` 与 `/cpp/*`）。
 - apps/otel-ui-ingress.prod.yaml：生产 UI 根路径 Ingress（`/`）。
 - apps/otel-ui-otlp-ingress.prod.yaml：生产 UI 同源 OTLP 入口（`/otlp/*`，转发到 agent 4318）。
 - apps/otel-ui-otlp-service.yaml：同 namespace OTLP 代理 Service（ExternalName，指向 `observability` 中的 agent）。
@@ -37,7 +38,7 @@
 3. 必要命名空间已存在（`observability`、`apps-prod`），且应用命名空间已标记 `otel-client=true`。
 4. `observability` 命名空间中已存在 App Insights 连接串密钥（`appinsights-conn`）。
 5. RBAC 权限允许在 `observability` 命名空间读取并更新 release。
-6. 集群已安装 NGINX Ingress Controller，且存在 `nginx` IngressClass；`apps/otelapidemo-ingress.prod.yaml` 依赖 NGINX rewrite 注解将 `/dotnet/*` 与 `/python/*` 改写到后端原始路径。在 AKS 上建议将 ingress-nginx Service 的 80 端口健康探针设置为 TCP，避免 Azure Load Balancer 使用 HTTP `/` 探针导致公网访问超时。
+6. 集群已安装 NGINX Ingress Controller，且存在 `nginx` IngressClass；`apps/otelapidemo-ingress.prod.yaml` 依赖 NGINX rewrite 注解将 `/dotnet/*`、`/python/*` 与 `/cpp/*` 改写到后端原始路径。在 AKS 上建议将 ingress-nginx Service 的 80 端口健康探针设置为 TCP，避免 Azure Load Balancer 使用 HTTP `/` 探针导致公网访问超时。
 7. 部署前请将 `gateway-values.prod.yaml` 与 `agent-values.prod.yaml` 中的 `<AKS_CLUSTER_NAME>` 替换为实际 AKS 集群名称，用于标准化 `k8s.cluster.name` 资源属性。
 
 ## 部署顺序
@@ -51,7 +52,7 @@
 7. 应用 agent Service 清单（为应用提供稳定 OTLP 入口）。
 8. 应用 agent 的 RBAC 清单（k8sattributes 元数据提取权限）。
 9. 应用 Instrumentation CRD。
-10. 部署 `.NET`、Python 与 React UI 示例应用（Service 均使用 `ClusterIP`）。
+10. 部署 `.NET`、Python、C++ 与 React UI 示例应用（Service 均使用 `ClusterIP`）。
 11. 应用 API 路由 Ingress 与 UI 根路径 Ingress。
 12. 验证统一入口、`/otlp/v1/traces` 通过 `otel-ui-otlp-proxy` 转发、基础状态与 Collector 指标。
 
@@ -138,7 +139,7 @@ kubectl get deploy,ds -n observability
 kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
-kubectl get svc -n apps-prod otelapidemo otelapidemo-python otel-ui
+kubectl get svc -n apps-prod otelapidemo otelapidemo-python otelapidemo-cpp otel-ui
 kubectl get ingress -n apps-prod otelapidemo otel-ui
 ```
 
@@ -214,7 +215,7 @@ kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get instrumentation -n observability
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
-kubectl get svc -n apps-prod otelapidemo otelapidemo-python otel-ui
+kubectl get svc -n apps-prod otelapidemo otelapidemo-python otelapidemo-cpp otel-ui
 kubectl get ingress -n apps-prod otelapidemo otel-ui
 
 # 13) Collector 管道计数器（gateway）
@@ -275,7 +276,7 @@ metadata:
 
 ### 常见问题
 
-#### Ingress 有公网 IP，但访问 `/dotnet/weatherforecast` 或 `/python/weatherforecast` 超时
+#### Ingress 有公网 IP，但访问 `/dotnet/weatherforecast`、`/python/weatherforecast` 或 `/cpp/weatherforecast` 超时
 
 现象：`kubectl get ingress -n apps-prod otelapidemo` 已显示公网地址，Ingress 规则和 Service Endpoints 都正常；从集群内部访问 `ingress-nginx-controller` Service 或直接访问后端 Service 返回 `200`，但从本机访问公网 IP 的 80 端口超时。
 
@@ -320,14 +321,15 @@ $ingressAddress = kubectl get ingress -n apps-prod otelapidemo -o jsonpath='{.st
 Test-NetConnection $ingressAddress -Port 80
 curl.exe -i --max-time 10 "http://$ingressAddress/dotnet/weatherforecast"
 curl.exe -i --max-time 10 "http://$ingressAddress/python/weatherforecast"
+curl.exe -i --max-time 10 "http://$ingressAddress/cpp/weatherforecast"
 ```
 
 #### Ingress 可访问，但 `/python/throw-custom-exception` 出现 302 跳转
 
 现象：
 
-- 集群内访问 Python Service（如 `http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception`）返回 `500`，符合预期。
-- 从公网访问 Ingress 地址（如 `http://<INGRESS_IP>/python/throw-custom-exception`）出现 `302`，且响应头 `Location` 指向其他外部地址。
+- 集群内访问 Python Service（如 `http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception`）返回 `500`，C++ Service（如 `http://otelapidemo-cpp.apps-prod.svc.cluster.local/weatherforecast/throw-custom-exception`）也应返回 `500`。
+- 从公网访问 Ingress 地址（如 `http://<INGRESS_IP>/python/throw-custom-exception` 或 `http://<INGRESS_IP>/cpp/weatherforecast/throw-custom-exception`）出现 `302`，且响应头 `Location` 指向其他外部地址。
 
 结论：该跳转通常由公网链路侧注入（企业出口网关/运营商链路安全策略），不是应用代码、Pod、或 Ingress rewrite 规则主动返回。
 
@@ -343,7 +345,7 @@ curl.exe -i --max-time 10 "http://$ingressAddress/python/weatherforecast"
 kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- curl -i --max-time 10 http://ingress-nginx-controller.ingress-nginx.svc.cluster.local/python/throw-custom-exception
 
 # 2) 再确认后端 Service 直连是 500（排除应用侧问题）
-kubectl run svc-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-prod -- curl -i --max-time 10 http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception
+kubectl run svc-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-prod -- sh -c "curl -i --max-time 10 http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception; echo; curl -i --max-time 10 http://otelapidemo-cpp.apps-prod.svc.cluster.local/weatherforecast/throw-custom-exception"
 
 # 3) 最后对公网地址做同一路径探测（若此处出现外部 302，基本可判定是公网链路侧重定向）
 $ingressAddress = kubectl get ingress -n apps-prod otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
@@ -386,21 +388,21 @@ spec:
         value: http/protobuf
 ```
 
-应用 Instrumentation 后重启 Python Deployment，再发送 50-200 次测试请求。App Insights 中的 `cloud_RoleName` 通常为 `apps-prod.otelapidemo-python`。
+应用 Instrumentation 后重启 Python Deployment，再发送 50-200 次测试请求。App Insights 中的 `cloud_RoleName` 通常为 `apps-prod.otelapidemo-python`；C++ 服务通常为 `apps-prod.otelapidemo-cpp`。
 
 ### App Insights 最终核验 KQL（30 分钟）
 
 - 在发送测试流量、重启 Pod、或调整 Collector/Instrumentation 配置后，建议先等待 3-10 分钟再查询，以避免摄取延迟导致误判。
-- Azure Monitor / App Insights 中的 `cloud_RoleName` 通常由 Kubernetes namespace 与服务名组合而成，例如 `.NET` 为 `apps-prod.otelapidemo`，Python 为 `apps-prod.otelapidemo-python`。
+- Azure Monitor / App Insights 中的 `cloud_RoleName` 通常由 Kubernetes namespace 与服务名组合而成，例如 `.NET` 为 `apps-prod.otelapidemo`，Python 为 `apps-prod.otelapidemo-python`，C++ 为 `apps-prod.otelapidemo-cpp`。
 - 如果不同环境中的 `cloud_RoleName` 映射有差异，可使用 `customDimensions["service.namespace"]` 和 `customDimensions["service.name"]` 作为兜底过滤条件。
 
 ```kql
 union requests, dependencies, traces
 | where timestamp > ago(30m)
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
   or (
     tostring(customDimensions["service.namespace"]) =~ "apps-prod"
-    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python", "otelapidemo-cpp")
   )
 | order by timestamp desc
 ```
@@ -414,10 +416,10 @@ union requests, dependencies, traces
 // 1) 最近 30 分钟异常总览（prod）
 exceptions
 | where timestamp > ago(30m)
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
   or (
     tostring(customDimensions["service.namespace"]) =~ "apps-prod"
-    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python", "otelapidemo-cpp")
   )
 | project timestamp, cloud_RoleName, type, outerMessage, problemId, operation_Id
 | order by timestamp desc
@@ -431,10 +433,10 @@ let Ex = exceptions
 requests
 | where timestamp > ago(30m)
 | where url has "throw-custom-exception" or url has "throw-and-catch-exception"
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
   or (
     tostring(customDimensions["service.namespace"]) =~ "apps-prod"
-    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python", "otelapidemo-cpp")
   )
 | project reqTime=timestamp, operation_Id, reqRole=cloud_RoleName, name, url, resultCode, success
 | join kind=leftouter Ex on operation_Id
@@ -467,10 +469,10 @@ let MetricRows = union isfuzzy=true
   (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
 MetricRows
 | where timestamp > ago(30m)
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
   or (
     tostring(customDimensions["service.namespace"]) =~ "apps-prod"
-    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python", "otelapidemo-cpp")
   )
 | summarize points=count(), avgValue=avg(value), maxValue=max(value), lastSeen=max(timestamp) by name, cloud_RoleName
 | order by points desc
@@ -484,7 +486,7 @@ let MetricRows = union isfuzzy=true
   (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
 MetricRows
 | where timestamp > ago(30m)
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
 | where name has_any ("http", "server", "request", "duration", "runtime", "process", "cpu", "memory", "gc", "thread")
 | summarize points=count(), avgValue=avg(value), p95Value=percentile(value, 95), maxValue=max(value) by name, cloud_RoleName, bin(timestamp, 5m)
 | order by timestamp desc, name asc
@@ -515,7 +517,7 @@ MetricRows
 ```kql
 requests
 | where timestamp > ago(30m)
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
 | summarize requestCount=count(), failedCount=countif(success == false), avgDurationMs=avg(duration), p95DurationMs=percentile(duration, 95) by cloud_RoleName, bin(timestamp, 5m)
 | order by timestamp desc
 ```
@@ -527,6 +529,7 @@ $nsObs = "observability"
 $nsApp = "apps-prod"
 $dotnetApp = "otelapidemo"
 $pythonApp = "otelapidemo-python"
+$cppApp = "otelapidemo-cpp"
 $svc = "otel-agent-opentelemetry-collector"
 $nsIngress = "ingress-nginx"
 $ingressName = "otelapidemo"
@@ -536,6 +539,7 @@ Write-Host "== 1) 组件状态 =="
 kubectl get pods -n $nsObs -o wide
 kubectl get pods -n $nsApp -l app=$dotnetApp -o wide
 kubectl get pods -n $nsApp -l app=$pythonApp -o wide
+kubectl get pods -n $nsApp -l app=$cppApp -o wide
 
 Write-Host "== 2) OTLP 入口服务 =="
 kubectl get svc -n $nsObs $svc -o wide
@@ -553,12 +557,12 @@ Write-Host "== 4) 生产 Ingress 状态 =="
 kubectl get ingressclass nginx
 kubectl get pods -n $nsIngress -l app.kubernetes.io/component=controller -o wide
 kubectl get svc -n $nsIngress $ingressSvc -o wide
-kubectl get svc -n $nsApp $dotnetApp $pythonApp -o wide
-kubectl get endpoints -n $nsApp $dotnetApp $pythonApp -o wide
+kubectl get svc -n $nsApp $dotnetApp $pythonApp $cppApp -o wide
+kubectl get endpoints -n $nsApp $dotnetApp $pythonApp $cppApp -o wide
 kubectl get ingress -n $nsApp $ingressName -o wide
 kubectl describe ingress -n $nsApp $ingressName
 kubectl get svc -n $nsIngress $ingressSvc -o jsonpath='{.metadata.annotations.service\.beta\.kubernetes\.io/port_80_health-probe_protocol}{"\n"}'
-kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- sh -c "curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/dotnet/weatherforecast; echo; curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/python/weatherforecast"
+kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- sh -c "curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/dotnet/weatherforecast; echo; curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/python/weatherforecast; echo; curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/cpp/weatherforecast"
 
 Write-Host "== 5) 打测试流量 =="
 $ingressAddress = kubectl get ingress -n $nsApp $ingressName -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
@@ -572,8 +576,9 @@ if ([string]::IsNullOrEmpty($ingressAddress)) {
   1..100 | ForEach-Object {
     try { Invoke-WebRequest -Uri ("http://{0}/dotnet/weatherforecast" -f $ingressAddress) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
     try { Invoke-WebRequest -Uri ("http://{0}/python/weatherforecast" -f $ingressAddress) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
+    try { Invoke-WebRequest -Uri ("http://{0}/cpp/weatherforecast" -f $ingressAddress) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
   }
-  Write-Host "Traffic sent to http://$ingressAddress/dotnet/weatherforecast and /python/weatherforecast"
+  Write-Host "Traffic sent to http://$ingressAddress/dotnet/weatherforecast, /python/weatherforecast, and /cpp/weatherforecast"
 }
 
 Write-Host "== 6) Collector 关键日志（近10分钟） =="
@@ -590,6 +595,7 @@ NS_OBS="observability"
 NS_APP="apps-prod"
 DOTNET_APP="otelapidemo"
 PYTHON_APP="otelapidemo-python"
+CPP_APP="otelapidemo-cpp"
 SVC="otel-agent-opentelemetry-collector"
 NS_INGRESS="ingress-nginx"
 INGRESS_NAME="otelapidemo"
@@ -599,6 +605,7 @@ echo "== 1) 组件状态 =="
 kubectl get pods -n "$NS_OBS" -o wide
 kubectl get pods -n "$NS_APP" -l app="$DOTNET_APP" -o wide
 kubectl get pods -n "$NS_APP" -l app="$PYTHON_APP" -o wide
+kubectl get pods -n "$NS_APP" -l app="$CPP_APP" -o wide
 
 echo "== 2) OTLP 入口服务 =="
 kubectl get svc -n "$NS_OBS" "$SVC" -o wide
@@ -616,12 +623,12 @@ echo "== 4) 生产 Ingress 状态 =="
 kubectl get ingressclass nginx
 kubectl get pods -n "$NS_INGRESS" -l app.kubernetes.io/component=controller -o wide
 kubectl get svc -n "$NS_INGRESS" "$INGRESS_SVC" -o wide
-kubectl get svc -n "$NS_APP" "$DOTNET_APP" "$PYTHON_APP" -o wide
-kubectl get endpoints -n "$NS_APP" "$DOTNET_APP" "$PYTHON_APP" -o wide
+kubectl get svc -n "$NS_APP" "$DOTNET_APP" "$PYTHON_APP" "$CPP_APP" -o wide
+kubectl get endpoints -n "$NS_APP" "$DOTNET_APP" "$PYTHON_APP" "$CPP_APP" -o wide
 kubectl get ingress -n "$NS_APP" "$INGRESS_NAME" -o wide
 kubectl describe ingress -n "$NS_APP" "$INGRESS_NAME"
 kubectl get svc -n "$NS_INGRESS" "$INGRESS_SVC" -o jsonpath='{.metadata.annotations.service\.beta\.kubernetes\.io/port_80_health-probe_protocol}{"\n"}'
-kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- sh -c "curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/dotnet/weatherforecast; echo; curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/python/weatherforecast"
+kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- sh -c "curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/dotnet/weatherforecast; echo; curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/python/weatherforecast; echo; curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/cpp/weatherforecast"
 
 echo "== 5) 打测试流量 =="
 INGRESS_ADDRESS=$(kubectl get ingress -n "$NS_APP" "$INGRESS_NAME" -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
@@ -632,8 +639,9 @@ if [ -n "${INGRESS_ADDRESS}" ]; then
   for i in $(seq 1 100); do
     curl -sS "http://${INGRESS_ADDRESS}/dotnet/weatherforecast" >/dev/null || true
     curl -sS "http://${INGRESS_ADDRESS}/python/weatherforecast" >/dev/null || true
+    curl -sS "http://${INGRESS_ADDRESS}/cpp/weatherforecast" >/dev/null || true
   done
-  echo "Traffic sent to http://${INGRESS_ADDRESS}/dotnet/weatherforecast and /python/weatherforecast"
+  echo "Traffic sent to http://${INGRESS_ADDRESS}/dotnet/weatherforecast, /python/weatherforecast, and /cpp/weatherforecast"
 else
   echo "Ingress address not ready"
 fi

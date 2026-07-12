@@ -16,9 +16,10 @@
 - inst-crd-python.prod.yaml: production Python auto-instrumentation CRD.
 - apps/otelapidemo-dotnet.yaml: production .NET sample app manifest (production annotation preconfigured).
 - apps/otelapidemo-python.yaml: production Python sample app manifest (production annotation preconfigured).
+- apps/otelapidemo-cpp.yaml: production C++ sample app manifest (production annotation preconfigured).
 - apps/otel-ui.yaml: production React UI manifest.
 - apps/kustomization.yaml: production sample app Kustomize entrypoint (replaces ACR image names).
-- apps/otelapidemo-ingress.prod.yaml: production API ingress for `/dotnet/*` and `/python/*`.
+- apps/otelapidemo-ingress.prod.yaml: production API ingress for `/dotnet/*`, `/python/*`, and `/cpp/*`.
 - apps/otel-ui-ingress.prod.yaml: production UI ingress for `/`.
 - alerts-kql.prod.md: alerting and KQL guidance for production.
 - appinsights-dashboard.prod.en.md: Application Insights dashboard guide (application runtime + common OTel metrics).
@@ -33,7 +34,7 @@
 3. Required namespaces exist (`observability`, `apps-prod`) and application namespace is labeled with `otel-client=true`.
 4. App Insights connection string secret exists (`appinsights-conn`) in `observability`.
 5. RBAC allows you to read and update releases in `observability` namespace.
-6. NGINX Ingress Controller is installed in the cluster, and the `nginx` IngressClass exists. `apps/otelapidemo-ingress.prod.yaml` depends on NGINX rewrite annotations to rewrite `/dotnet/*` and `/python/*` to the original backend paths. On AKS, set the ingress-nginx Service health probe for port 80 to TCP to avoid Azure Load Balancer HTTP `/` probes causing public access timeouts.
+6. NGINX Ingress Controller is installed in the cluster, and the `nginx` IngressClass exists. `apps/otelapidemo-ingress.prod.yaml` depends on NGINX rewrite annotations to rewrite `/dotnet/*`, `/python/*`, and `/cpp/*` to the original backend paths. On AKS, set the ingress-nginx Service health probe for port 80 to TCP to avoid Azure Load Balancer HTTP `/` probes causing public access timeouts.
 7. Before deployment, replace `<AKS_CLUSTER_NAME>` in `gateway-values.prod.yaml` and `agent-values.prod.yaml` with the actual AKS cluster name. This value standardizes the `k8s.cluster.name` resource attribute.
 
 ## Deploy Order
@@ -47,7 +48,7 @@
 7. Apply agent Service manifest (stable OTLP endpoint for applications).
 8. Apply agent RBAC manifest (k8sattributes metadata extraction permissions).
 9. Apply Instrumentation CRD.
-10. Deploy the `.NET`, Python, and React UI sample applications (all Services use `ClusterIP`).
+10. Deploy the `.NET`, Python, C++, and React UI sample applications (all Services use `ClusterIP`).
 11. Apply the API ingress and the UI root ingress.
 12. Verify the unified entrypoint, baseline status, and Collector metrics.
 
@@ -121,7 +122,7 @@ kubectl get deploy,ds -n observability
 kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
-kubectl get svc -n apps-prod otelapidemo otelapidemo-python otel-ui
+kubectl get svc -n apps-prod otelapidemo otelapidemo-python otelapidemo-cpp otel-ui
 kubectl get ingress -n apps-prod otelapidemo otel-ui
 ```
 
@@ -197,7 +198,7 @@ kubectl get svc -n observability otel-agent-opentelemetry-collector
 kubectl get instrumentation -n observability
 kubectl get certificate -n observability
 kubectl get pods -n apps-prod
-kubectl get svc -n apps-prod otelapidemo otelapidemo-python otel-ui
+kubectl get svc -n apps-prod otelapidemo otelapidemo-python otelapidemo-cpp otel-ui
 kubectl get ingress -n apps-prod otelapidemo otel-ui
 
 # 13) Collector pipeline counters (gateway)
@@ -258,7 +259,7 @@ metadata:
 
 ### FAQ
 
-#### Ingress has a public IP, but `/dotnet/weatherforecast` or `/python/weatherforecast` times out
+#### Ingress has a public IP, but `/dotnet/weatherforecast`, `/python/weatherforecast`, or `/cpp/weatherforecast` times out
 
 Symptom: `kubectl get ingress -n apps-prod otelapidemo` shows a public address, and the Ingress rules plus Service endpoints look correct. Accessing the `ingress-nginx-controller` Service or the backend Services from inside the cluster returns `200`, but accessing port 80 on the public IP from the client machine times out.
 
@@ -303,14 +304,15 @@ $ingressAddress = kubectl get ingress -n apps-prod otelapidemo -o jsonpath='{.st
 Test-NetConnection $ingressAddress -Port 80
 curl.exe -i --max-time 10 "http://$ingressAddress/dotnet/weatherforecast"
 curl.exe -i --max-time 10 "http://$ingressAddress/python/weatherforecast"
+curl.exe -i --max-time 10 "http://$ingressAddress/cpp/weatherforecast"
 ```
 
 #### Ingress is reachable, but `/python/throw-custom-exception` returns 302 redirect
 
 Symptom:
 
-- Accessing Python Service inside the cluster (for example, `http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception`) returns `500` as expected.
-- Accessing the same route through public Ingress (for example, `http://<INGRESS_IP>/python/throw-custom-exception`) returns `302`, and the `Location` header points to another external URL.
+- Accessing Python Service inside the cluster (for example, `http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception`) returns `500` as expected. The C++ Service (for example, `http://otelapidemo-cpp.apps-prod.svc.cluster.local/weatherforecast/throw-custom-exception`) should also return `500`.
+- Accessing the same route through public Ingress (for example, `http://<INGRESS_IP>/python/throw-custom-exception` or `http://<INGRESS_IP>/cpp/weatherforecast/throw-custom-exception`) returns `302`, and the `Location` header points to another external URL.
 
 Finding: this redirect is typically injected by the public network path (enterprise egress security or ISP-side security policy), not returned by application code, pods, or Ingress rewrite rules.
 
@@ -326,7 +328,7 @@ Recommended checks in production ingress architecture:
 kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- curl -i --max-time 10 http://ingress-nginx-controller.ingress-nginx.svc.cluster.local/python/throw-custom-exception
 
 # 2) Verify backend service direct path still returns 500 (rules out app-side issues)
-kubectl run svc-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-prod -- curl -i --max-time 10 http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception
+kubectl run svc-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -n apps-prod -- sh -c "curl -i --max-time 10 http://otelapidemo-python.apps-prod.svc.cluster.local/throw-custom-exception; echo; curl -i --max-time 10 http://otelapidemo-cpp.apps-prod.svc.cluster.local/weatherforecast/throw-custom-exception"
 
 # 3) Probe the same route from the public ingress IP
 $ingressAddress = kubectl get ingress -n apps-prod otelapidemo -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
@@ -369,38 +371,38 @@ spec:
         value: http/protobuf
 ```
 
-After applying the Instrumentation, restart the Python Deployment and send 50-200 test requests. In App Insights, the `cloud_RoleName` is usually `apps-prod.otelapidemo-python`.
+After applying the Instrumentation, restart the Python Deployment and send 50-200 test requests. In App Insights, the `cloud_RoleName` is usually `apps-prod.otelapidemo-python`, and the C++ service is usually `apps-prod.otelapidemo-cpp`.
 
 ### Final App Insights Verification KQL (30m)
 
 - After sending test traffic, restarting Pods, or changing Collector/Instrumentation config, wait 3-10 minutes before querying to avoid false negatives from ingestion delay.
-- In Azure Monitor / App Insights, `cloud_RoleName` is usually composed from the Kubernetes namespace and service name. For example, `.NET` is `apps-prod.otelapidemo`, and Python is `apps-prod.otelapidemo-python`.
+- In Azure Monitor / App Insights, `cloud_RoleName` is usually composed from the Kubernetes namespace and service name. For example, `.NET` is `apps-prod.otelapidemo`, Python is `apps-prod.otelapidemo-python`, and C++ is `apps-prod.otelapidemo-cpp`.
 - If `cloud_RoleName` mapping differs in another environment, use `customDimensions["service.namespace"]` and `customDimensions["service.name"]` as fallback filters.
 
 ```kql
 union requests, dependencies, traces
 | where timestamp > ago(30m)
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
   or (
     tostring(customDimensions["service.namespace"]) =~ "apps-prod"
-    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python", "otelapidemo-cpp")
   )
 | order by timestamp desc
 ```
 
 ### App Insights Exception Query KQL (30m)
 
-- Trigger one round of exception endpoints first (for example, `/dotnet/throw-custom-exception`, `/python/throw-custom-exception`, `/dotnet/throw-and-catch-exception`, and `/python/throw-and-catch-exception`), then wait 3-10 minutes before querying.
+- Trigger one round of exception endpoints first (for example, `/dotnet/throw-custom-exception`, `/python/throw-custom-exception`, `/cpp/weatherforecast/throw-custom-exception`, `/dotnet/throw-and-catch-exception`, `/python/throw-and-catch-exception`, and `/cpp/weatherforecast/throw-and-catch-exception`), then wait 3-10 minutes before querying.
 - Review `exceptions` first, then correlate with `requests` by `operation_Id`.
 
 ```kusto
 // 1) Exception overview in the last 30 minutes (prod)
 exceptions
 | where timestamp > ago(30m)
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
   or (
     tostring(customDimensions["service.namespace"]) =~ "apps-prod"
-    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python", "otelapidemo-cpp")
   )
 | project timestamp, cloud_RoleName, type, outerMessage, problemId, operation_Id
 | order by timestamp desc
@@ -414,10 +416,10 @@ let Ex = exceptions
 requests
 | where timestamp > ago(30m)
 | where url has "throw-custom-exception" or url has "throw-and-catch-exception"
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
   or (
     tostring(customDimensions["service.namespace"]) =~ "apps-prod"
-    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python", "otelapidemo-cpp")
   )
 | project reqTime=timestamp, operation_Id, reqRole=cloud_RoleName, name, url, resultCode, success
 | join kind=leftouter Ex on operation_Id
@@ -450,10 +452,10 @@ let MetricRows = union isfuzzy=true
   (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
 MetricRows
 | where timestamp > ago(30m)
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
   or (
     tostring(customDimensions["service.namespace"]) =~ "apps-prod"
-    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python")
+    and tostring(customDimensions["service.name"]) in~ ("otelapidemo", "otelapidemo-python", "otelapidemo-cpp")
   )
 | summarize points=count(), avgValue=avg(value), maxValue=max(value), lastSeen=max(timestamp) by name, cloud_RoleName
 | order by points desc
@@ -467,7 +469,7 @@ let MetricRows = union isfuzzy=true
   (AppMetrics | project timestamp=TimeGenerated, name=Name, value=todouble(Sum), cloud_RoleName=AppRoleName, customDimensions=Properties);
 MetricRows
 | where timestamp > ago(30m)
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
 | where name has_any ("http", "server", "request", "duration", "runtime", "process", "cpu", "memory", "gc", "thread")
 | summarize points=count(), avgValue=avg(value), p95Value=percentile(value, 95), maxValue=max(value) by name, cloud_RoleName, bin(timestamp, 5m)
 | order by timestamp desc, name asc
@@ -498,7 +500,7 @@ If `customMetrics` does not yet show application metrics, use the `requests` tab
 ```kql
 requests
 | where timestamp > ago(30m)
-| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python")
+| where cloud_RoleName in~ ("apps-prod.otelapidemo", "apps-prod.otelapidemo-python", "apps-prod.otelapidemo-cpp")
 | summarize requestCount=count(), failedCount=countif(success == false), avgDurationMs=avg(duration), p95DurationMs=percentile(duration, 95) by cloud_RoleName, bin(timestamp, 5m)
 | order by timestamp desc
 ```
@@ -510,6 +512,7 @@ $nsObs = "observability"
 $nsApp = "apps-prod"
 $dotnetApp = "otelapidemo"
 $pythonApp = "otelapidemo-python"
+$cppApp = "otelapidemo-cpp"
 $svc = "otel-agent-opentelemetry-collector"
 $nsIngress = "ingress-nginx"
 $ingressName = "otelapidemo"
@@ -519,6 +522,7 @@ Write-Host "== 1) Component health =="
 kubectl get pods -n $nsObs -o wide
 kubectl get pods -n $nsApp -l app=$dotnetApp -o wide
 kubectl get pods -n $nsApp -l app=$pythonApp -o wide
+kubectl get pods -n $nsApp -l app=$cppApp -o wide
 
 Write-Host "== 2) OTLP entry service =="
 kubectl get svc -n $nsObs $svc -o wide
@@ -536,12 +540,12 @@ Write-Host "== 4) Production Ingress status =="
 kubectl get ingressclass nginx
 kubectl get pods -n $nsIngress -l app.kubernetes.io/component=controller -o wide
 kubectl get svc -n $nsIngress $ingressSvc -o wide
-kubectl get svc -n $nsApp $dotnetApp $pythonApp -o wide
-kubectl get endpoints -n $nsApp $dotnetApp $pythonApp -o wide
+kubectl get svc -n $nsApp $dotnetApp $pythonApp $cppApp -o wide
+kubectl get endpoints -n $nsApp $dotnetApp $pythonApp $cppApp -o wide
 kubectl get ingress -n $nsApp $ingressName -o wide
 kubectl describe ingress -n $nsApp $ingressName
 kubectl get svc -n $nsIngress $ingressSvc -o jsonpath='{.metadata.annotations.service\.beta\.kubernetes\.io/port_80_health-probe_protocol}{"\n"}'
-kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- sh -c "curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/dotnet/weatherforecast; echo; curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/python/weatherforecast"
+kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- sh -c "curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/dotnet/weatherforecast; echo; curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/python/weatherforecast; echo; curl -i --max-time 10 http://$ingressSvc.$nsIngress.svc.cluster.local/cpp/weatherforecast"
 
 Write-Host "== 5) Generate test traffic =="
 $ingressAddress = kubectl get ingress -n $nsApp $ingressName -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
@@ -555,8 +559,9 @@ if ([string]::IsNullOrEmpty($ingressAddress)) {
   1..100 | ForEach-Object {
     try { Invoke-WebRequest -Uri ("http://{0}/dotnet/weatherforecast" -f $ingressAddress) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
     try { Invoke-WebRequest -Uri ("http://{0}/python/weatherforecast" -f $ingressAddress) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
+    try { Invoke-WebRequest -Uri ("http://{0}/cpp/weatherforecast" -f $ingressAddress) -UseBasicParsing -TimeoutSec 5 | Out-Null } catch {}
   }
-  Write-Host "Traffic sent to http://$ingressAddress/dotnet/weatherforecast and /python/weatherforecast"
+  Write-Host "Traffic sent to http://$ingressAddress/dotnet/weatherforecast, /python/weatherforecast, and /cpp/weatherforecast"
 }
 
 Write-Host "== 6) Key Collector logs (last 10m) =="
@@ -573,6 +578,7 @@ NS_OBS="observability"
 NS_APP="apps-prod"
 DOTNET_APP="otelapidemo"
 PYTHON_APP="otelapidemo-python"
+CPP_APP="otelapidemo-cpp"
 SVC="otel-agent-opentelemetry-collector"
 NS_INGRESS="ingress-nginx"
 INGRESS_NAME="otelapidemo"
@@ -582,6 +588,7 @@ echo "== 1) Component health =="
 kubectl get pods -n "$NS_OBS" -o wide
 kubectl get pods -n "$NS_APP" -l app="$DOTNET_APP" -o wide
 kubectl get pods -n "$NS_APP" -l app="$PYTHON_APP" -o wide
+kubectl get pods -n "$NS_APP" -l app="$CPP_APP" -o wide
 
 echo "== 2) OTLP entry service =="
 kubectl get svc -n "$NS_OBS" "$SVC" -o wide
@@ -599,12 +606,12 @@ echo "== 4) Production Ingress status =="
 kubectl get ingressclass nginx
 kubectl get pods -n "$NS_INGRESS" -l app.kubernetes.io/component=controller -o wide
 kubectl get svc -n "$NS_INGRESS" "$INGRESS_SVC" -o wide
-kubectl get svc -n "$NS_APP" "$DOTNET_APP" "$PYTHON_APP" -o wide
-kubectl get endpoints -n "$NS_APP" "$DOTNET_APP" "$PYTHON_APP" -o wide
+kubectl get svc -n "$NS_APP" "$DOTNET_APP" "$PYTHON_APP" "$CPP_APP" -o wide
+kubectl get endpoints -n "$NS_APP" "$DOTNET_APP" "$PYTHON_APP" "$CPP_APP" -o wide
 kubectl get ingress -n "$NS_APP" "$INGRESS_NAME" -o wide
 kubectl describe ingress -n "$NS_APP" "$INGRESS_NAME"
 kubectl get svc -n "$NS_INGRESS" "$INGRESS_SVC" -o jsonpath='{.metadata.annotations.service\.beta\.kubernetes\.io/port_80_health-probe_protocol}{"\n"}'
-kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- sh -c "curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/dotnet/weatherforecast; echo; curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/python/weatherforecast"
+kubectl run ingress-test --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- sh -c "curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/dotnet/weatherforecast; echo; curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/python/weatherforecast; echo; curl -i --max-time 10 http://${INGRESS_SVC}.${NS_INGRESS}.svc.cluster.local/cpp/weatherforecast"
 
 echo "== 5) Generate test traffic =="
 INGRESS_ADDRESS=$(kubectl get ingress -n "$NS_APP" "$INGRESS_NAME" -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
@@ -615,8 +622,9 @@ if [ -n "${INGRESS_ADDRESS}" ]; then
   for i in $(seq 1 100); do
     curl -sS "http://${INGRESS_ADDRESS}/dotnet/weatherforecast" >/dev/null || true
     curl -sS "http://${INGRESS_ADDRESS}/python/weatherforecast" >/dev/null || true
+    curl -sS "http://${INGRESS_ADDRESS}/cpp/weatherforecast" >/dev/null || true
   done
-  echo "Traffic sent to http://${INGRESS_ADDRESS}/dotnet/weatherforecast and /python/weatherforecast"
+  echo "Traffic sent to http://${INGRESS_ADDRESS}/dotnet/weatherforecast, /python/weatherforecast, and /cpp/weatherforecast"
 else
   echo "Ingress address not ready"
 fi

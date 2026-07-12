@@ -10,7 +10,7 @@
 - otelapidemo-dotnet.yaml: .NET sample app manifest.
 - otelapidemo-python.yaml: Python sample app manifest.
 - otel-ui.yaml: React UI deployment manifest.
-- otelapidemo-ingress.yaml: API ingress for `/dotnet/*` and `/python/*`.
+- otelapidemo-ingress.yaml: API ingress for `/dotnet/*`, `/python/*`, and `/cpp/*`.
 - otel-ui-ingress.yaml: UI ingress for `/`.
 - otel-ui-otlp-ingress.yaml: same-origin OTLP ingress for `/otlp/*`, forwarded to Collector 4318.
 - otel-ui-otlp-service.yaml: same-namespace OTLP proxy Service (ExternalName, pointing to the Collector in `observability`).
@@ -31,6 +31,7 @@ flowchart LR
   subgraph Apps[apps-dev]
     DotNet[.NET API]
     Python[Python API]
+    Cpp[C++ API]
     UiSvc[otel-ui Service]
     ProxySvc[otel-ui-otlp-proxy Service\nExternalName]
     UiIngress[otel-ui Ingress]
@@ -46,8 +47,10 @@ flowchart LR
   Bootstrap --> OtlpIngress --> ProxySvc --> Collector
   UiIngress --> DotNet
   UiIngress --> Python
+  UiIngress --> Cpp
   DotNet --> Collector
   Python --> Collector
+  Cpp --> Collector
   Collector --> Azure
 ```
 
@@ -70,8 +73,8 @@ Browser OTLP uses the same-namespace `otel-ui-otlp-proxy` Service to reach the C
 6. Apply Instrumentation CRDs.
 7. Check whether `<ACR_LOGIN_SERVER>` in the application manifests is still a placeholder, and replace it with a real value first.
 8. Deploy the `.NET`, Python, and React UI sample applications.
-9. Get the UI ingress address and validate `/`, `/dotnet/*`, and `/python/*` through the shared public entrypoint.
-10. Run a short load test against both the .NET and Python sample apps to generate traces, logs, and metrics.
+9. Get the UI ingress address and validate `/`, `/dotnet/*`, `/python/*`, and `/cpp/*` through the shared public entrypoint.
+10. Run a short load test against the .NET, Python, and C++ sample apps to generate traces, logs, and metrics.
 11. Verify collector pipeline counters, Kubernetes resource attributes, and telemetry ingestion.
 
 
@@ -114,6 +117,7 @@ fi
 curl -fsS "http://${ingress_host}/" > /dev/null
 curl -fsS "http://${ingress_host}/dotnet/weatherforecast" > /dev/null
 curl -fsS "http://${ingress_host}/python/weatherforecast" > /dev/null
+curl -fsS "http://${ingress_host}/cpp/weatherforecast" > /dev/null
 
 # 9) Run a short load test (first target the .NET sample app)
 seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${ingress_host}/dotnet/weatherforecast" > /dev/null
@@ -121,13 +125,17 @@ seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${ingress_host}/dotnet/weatherfor
 # 9b) Run the same load test against the Python sample app
 seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${ingress_host}/python/weatherforecast" > /dev/null
 
-# 9c) Exception endpoint stress test (recommended, covers both .NET and Python; expected HTTP 500)
+# 9c) Run the same load test against the C++ sample app
+seq 1 200 | xargs -I{} -P 20 curl -fsS "http://${ingress_host}/cpp/weatherforecast" > /dev/null
+
+# 9d) Exception endpoint stress test (recommended, covers .NET, Python, and C++; expected HTTP 500)
 req=100
 conc=20
 timeout=8
 
 dotnet_exception_url="http://${ingress_host}/dotnet/WeatherForecast/throw-custom-exception"
 python_exception_url="http://${ingress_host}/python/throw-custom-exception"
+cpp_exception_url="http://${ingress_host}/cpp/weatherforecast/throw-custom-exception"
 
 echo "[dotnet exception] ${dotnet_exception_url}"
 seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$dotnet_exception_url" |
@@ -137,9 +145,14 @@ echo "[python exception] ${python_exception_url}"
 seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$python_exception_url" |
   sort | uniq -c
 
-# 9d) New endpoint stress test (throw-and-catch-exception, covers both .NET and Python; expected HTTP 200)
+echo "[cpp exception] ${cpp_exception_url}"
+seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$cpp_exception_url" |
+  sort | uniq -c
+
+# 9e) New endpoint stress test (throw-and-catch-exception, covers .NET, Python, and C++; expected HTTP 200)
 dotnet_handled_exception_url="http://${ingress_host}/dotnet/WeatherForecast/throw-and-catch-exception"
 python_handled_exception_url="http://${ingress_host}/python/throw-and-catch-exception"
+cpp_handled_exception_url="http://${ingress_host}/cpp/weatherforecast/throw-and-catch-exception"
 
 echo "[dotnet handled exception] ${dotnet_handled_exception_url}"
 seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$dotnet_handled_exception_url" |
@@ -147,6 +160,10 @@ seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_
 
 echo "[python handled exception] ${python_handled_exception_url}"
 seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$python_handled_exception_url" |
+  sort | uniq -c
+
+echo "[cpp handled exception] ${cpp_handled_exception_url}"
+seq 1 "$req" | xargs -P "$conc" -I{} sh -c 'curl -L -sS -o /dev/null -w "%{http_code}\n" --max-time "$1" "$2" || echo 000' _ "$timeout" "$cpp_handled_exception_url" |
   sort | uniq -c
 
 # 10) Verify basic status
@@ -207,7 +224,7 @@ Invoke-WebRequest -Uri "http://${ingressHost}/python/weatherforecast" -UseBasicP
 # 9b) Run the same load test against the Python sample app
 1..200 | ForEach-Object { Invoke-WebRequest -Uri "http://${ingressHost}/python/weatherforecast" -UseBasicParsing | Out-Null }
 
-# 9c) Exception endpoint stress test (recommended, covers both .NET and Python; expected HTTP 500)
+# 9c) Exception endpoint stress test (recommended, covers .NET, Python, and C++; expected HTTP 500)
 $req = 100
 $conc = 20
 $timeoutSec = 8
@@ -229,7 +246,7 @@ $pythonCodes = 1..$req | ForEach-Object -Parallel {
 } -ThrottleLimit $conc
 $pythonCodes | Group-Object | Sort-Object Name | Format-Table Name, Count -AutoSize
 
-# 9d) New endpoint stress test (throw-and-catch-exception, covers both .NET and Python; expected HTTP 200)
+# 9d) New endpoint stress test (throw-and-catch-exception, covers .NET, Python, and C++; expected HTTP 200)
 $dotnetHandledExceptionUrl = "http://${ingressHost}/dotnet/WeatherForecast/throw-and-catch-exception"
 $pythonHandledExceptionUrl = "http://${ingressHost}/python/throw-and-catch-exception"
 
@@ -294,11 +311,11 @@ metadata:
 - Current dev values include debug and azuremonitor exporters for troubleshooting.
 - The current dev collector enables the `k8sattributes` processor to append `k8s.*` resource attributes automatically, while application-side `OTEL_RESOURCE_ATTRIBUTES` continues to hold static labels such as environment.
 - The current dev collector enables the `file_log` receiver to collect container log files from nodes (`/var/log/pods/.../*.log`).
-- Development now exposes a unified ingress entrypoint: `/` serves the React UI, `/dotnet/*` routes to the .NET API, and `/python/*` routes to the Python API.
+- Development now exposes a unified ingress entrypoint: `/` serves the React UI, `/dotnet/*` routes to the .NET API, `/python/*` routes to the Python API, and `/cpp/*` routes to the C++ API.
 - `dev/deploy-apps.ps1` and `dev/deploy-apps.sh` deploy the `.NET`, Python, and React UI apps together with both ingress resources.
 - Current development image baseline: `.NET`=`1.0.4`, Python=`1.0.4`, UI=`1.0.1`.
-- The load-test commands now cover both the .NET and Python sample apps on the `/weatherforecast` endpoint through the ingress entrypoint.
-- Exception endpoint stress-test commands are inlined in steps 9c and 9d: `throw-custom-exception` is expected to return HTTP 500, and `throw-and-catch-exception` is expected to return HTTP 200.
+- The load-test commands now cover the .NET, Python, and C++ sample apps on the `/weatherforecast` endpoint through the ingress entrypoint.
+- Exception endpoint stress-test commands are inlined in steps 9d and 9e: `throw-custom-exception` is expected to return HTTP 500, and `throw-and-catch-exception` is expected to return HTTP 200.
 - If Python public endpoint tests return mixed 302/200 results and headers show an external redirect target, that redirect is typically injected by the public network path, not returned by application code or AKS pods.
 - This class of public redirect cannot be "disabled" in application code; mitigation is network-side governance (enterprise/ISP allowlisting, false-positive appeal) or exposure-path redesign.
 - Recommended exposure is ClusterIP services behind Ingress + domain + HTTPS, instead of direct bare public IP access.

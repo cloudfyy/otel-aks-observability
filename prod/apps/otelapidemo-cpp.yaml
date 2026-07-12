@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otelapidemo-cpp
+  labels:
+    app: otelapidemo-cpp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: otelapidemo-cpp
+  template:
+    metadata:
+      labels:
+        app: otelapidemo-cpp
+    spec:
+      containers:
+        - name: otelapidemo-cpp
+          image: <ACR_LOGIN_SERVER>/otelapicpp:1.0.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8082
+              name: http
+          env:
+            - name: PORT
+              value: "8082"
+            - name: OTEL_SERVICE_NAME
+              value: otelapidemo-cpp
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: http/protobuf
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-agent-opentelemetry-collector.observability.svc.cluster.local:4318
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: service.namespace=apps-prod,service.version=1.0.0,deployment.environment.name=prod
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8082
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otelapidemo-cpp
+  labels:
+    app: otelapidemo-cpp
+spec:
+  type: ClusterIP
+  selector:
+    app: otelapidemo-cpp
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8082
+      protocol: TCP
