@@ -6,9 +6,12 @@ const DEFAULT_PROPAGATE_TRACE_HEADER_URLS = [
   '^http://localhost:5041/weatherforecast',
   '^http://localhost:8000/weatherforecast',
   '^http://localhost:8082/weatherforecast',
-  '^/dotnet/weatherforecast',
-  '^/python/weatherforecast',
-  '^/cpp/weatherforecast',
+  '^/dotnet/.*',
+  '^/python/.*',
+  '^/cpp/.*',
+  '^https?://[^/]+/dotnet/.*',
+  '^https?://[^/]+/python/.*',
+  '^https?://[^/]+/cpp/.*',
 ]
 
 interface TelemetryConfig {
