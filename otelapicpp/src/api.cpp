@@ -1,5 +1,6 @@
 #include "otelapicpp/api.h"
 
+#include <array>
 #include <exception>
 #include <iostream>
 #include <string>
@@ -9,6 +10,7 @@
 
 #include <opentelemetry/context/context.h>
 #include <opentelemetry/context/propagation/text_map_propagator.h>
+#include <opentelemetry/nostd/span.h>
 #include <opentelemetry/trace/propagation/http_trace_context.h>
 #include <opentelemetry/trace/scope.h>
 
@@ -52,6 +54,48 @@ void AddCorsHeaders(crow::response &response, const std::string &allowed_origins
   response.add_header("Access-Control-Allow-Origin", allowed_origins);
   response.add_header("Access-Control-Allow-Headers", "*");
   response.add_header("Access-Control-Allow-Methods", "GET,OPTIONS");
+}
+
+std::string ToTraceIdHex(const trace_api::TraceId &trace_id)
+{
+  std::array<char, trace_api::TraceId::kSize * 2> buffer{};
+  trace_id.ToLowerBase16(
+      opentelemetry::nostd::span<char, trace_api::TraceId::kSize * 2>(buffer.data(), buffer.size()));
+  return std::string(buffer.data(), buffer.size());
+}
+
+std::string ToSpanIdHex(const trace_api::SpanId &span_id)
+{
+  std::array<char, trace_api::SpanId::kSize * 2> buffer{};
+  span_id.ToLowerBase16(
+      opentelemetry::nostd::span<char, trace_api::SpanId::kSize * 2>(buffer.data(), buffer.size()));
+  return std::string(buffer.data(), buffer.size());
+}
+
+void EmitApiStartLogAndEvent(
+    const opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> &span,
+    const crow::request &request,
+    const std::string &operation,
+    const std::string &route)
+{
+  const auto span_context = span->GetContext();
+  const auto trace_id = ToTraceIdHex(span_context.trace_id());
+  const auto span_id = ToSpanIdHex(span_context.span_id());
+  const auto traceparent = request.get_header_value("traceparent");
+
+  std::cout << "[API Start] operation=" << operation
+            << " route=" << route
+            << " trace_id=" << trace_id
+            << " span_id=" << span_id
+            << std::endl;
+
+  span->AddEvent(
+      "api.request.start",
+      {{"api.operation", operation},
+       {"http.route", route},
+       {"trace.id", trace_id},
+       {"span.id", span_id},
+       {"traceparent", traceparent.empty() ? "" : traceparent}});
 }
 
 void RecordException(
@@ -107,6 +151,7 @@ opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> StartServerSpan(
   auto span = tracer->StartSpan(span_name, options);
   span->SetAttribute("http.method", crow::method_name(request.method));
   span->SetAttribute("http.route", route);
+  EmitApiStartLogAndEvent(span, request, span_name, route);
 
   return span;
 }
@@ -117,7 +162,12 @@ void RegisterRoutes(
     const std::string &allowed_origins,
     const opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> &tracer)
 {
-  CROW_ROUTE(app, "/health")([] {
+  CROW_ROUTE(app, "/health")([tracer](const crow::request &request) {
+    auto span = StartServerSpan(tracer, request, "GET /health", "/health");
+    trace_api::Scope scope(span);
+
+    span->SetStatus(opentelemetry::trace::StatusCode::kOk);
+    span->End();
     return crow::response(200, "ok");
   });
 
