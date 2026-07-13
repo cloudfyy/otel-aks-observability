@@ -29,6 +29,33 @@ int GetPortOrDefault(const std::string &value, int fallback)
     return fallback;
   }
 }
+
+bool GetBoolOrDefault(const char *name, bool fallback)
+{
+  const char *value = std::getenv(name);
+  if (value == nullptr)
+  {
+    return fallback;
+  }
+
+  std::string normalized(value);
+  for (auto &ch : normalized)
+  {
+    ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+  }
+
+  if (normalized == "1" || normalized == "true" || normalized == "yes" || normalized == "on")
+  {
+    return true;
+  }
+
+  if (normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off")
+  {
+    return false;
+  }
+
+  return fallback;
+}
 } // namespace
 
 AppConfig LoadAppConfig()
@@ -41,6 +68,7 @@ AppConfig LoadAppConfig()
       "OTEL_EXPORTER_OTLP_ENDPOINT",
       "http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318");
   config.otel_resource_attributes = GetEnvOrDefault("OTEL_RESOURCE_ATTRIBUTES", "");
+  config.trace_debug_enabled = GetBoolOrDefault("OTEL_TRACE_DEBUG_ENABLED", false);
   return config;
 }
 } // namespace otelapicpp

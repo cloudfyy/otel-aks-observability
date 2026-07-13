@@ -15,6 +15,8 @@
 - otel-ui-otlp-ingress.yaml: same-origin OTLP ingress for `/otlp/*`, forwarded to Collector 4318.
 - otel-ui-otlp-service.yaml: same-namespace OTLP proxy Service (ExternalName, pointing to the Collector in `observability`).
 - certmgr-test.yaml: cert-manager test manifest for development validation.
+- release-notes.dev.md: Chinese dev release notes.
+- release-notes.dev.en.md: English dev release notes.
 - README.dev.md: Chinese development deployment guide.
 - README.dev.en.md: this English development deployment guide.
 

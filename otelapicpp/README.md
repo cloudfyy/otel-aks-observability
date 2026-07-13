@@ -36,3 +36,4 @@ The app reads these environment variables:
 - OTEL_SERVICE_NAME (default: otelapidemo-cpp)
 - OTEL_EXPORTER_OTLP_ENDPOINT (default: http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318)
 - OTEL_RESOURCE_ATTRIBUTES (optional, app uses defaults when unset)
+- OTEL_TRACE_DEBUG_ENABLED (optional, set to `true` to emit trace debug response headers and console logs; default is off)

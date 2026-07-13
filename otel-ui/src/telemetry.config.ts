@@ -1,5 +1,5 @@
 const DEFAULT_SERVICE_NAME = 'otel-ui'
-const DEFAULT_SERVICE_VERSION = '1.0.6'
+const DEFAULT_SERVICE_VERSION = '1.0.9'
 const DEFAULT_OTLP_ENDPOINT = '/otlp/v1/traces'
 const DEFAULT_IGNORE_URLS = ['^/otlp/v1/traces']
 const DEFAULT_PROPAGATE_TRACE_HEADER_URLS = [

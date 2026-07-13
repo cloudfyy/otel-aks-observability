@@ -40,6 +40,7 @@ Optional OTEL env var:
 - `VITE_OTEL_ENVIRONMENT_NAME`: override `deployment.environment.name` (default uses `MODE`)
 - `VITE_OTEL_IGNORE_URLS`: comma-separated regex list for ignored URLs (default: `^/otlp/v1/traces`)
 - `VITE_OTEL_PROPAGATE_TRACE_HEADER_URLS`: comma-separated regex list for trace header propagation
+- `VITE_TRACE_DEBUG_ENABLED`: set to `true` to render trace debug details from backend response headers; default is off
 
 Telemetry defaults are centralized in `src/telemetry.config.ts` so endpoint, resource attributes,
 and instrumentation URL rules can be changed without editing telemetry bootstrap logic.

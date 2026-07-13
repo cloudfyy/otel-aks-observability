@@ -18,10 +18,19 @@ type SourceConfig = {
   accent: Accent
 }
 
+type TraceDebug = {
+  requestTraceparent: string
+  requestTraceId: string
+  requestParentSpanId: string
+  requestFlags: string
+  serverTraceId: string
+}
+
 type PanelState = {
   data: ForecastRecord[]
   error: string
   loading: boolean
+  traceDebug: TraceDebug | null
 }
 
 type ForecastState = {
@@ -33,6 +42,7 @@ type ForecastState = {
 
 const refreshOptions = [5, 10, 30, 60]
 const exceptionRequestRate = 0.2
+const traceDebugEnabled = import.meta.env.VITE_TRACE_DEBUG_ENABLED === 'true'
 
 function resolveApiBaseUrl(
   envValue: string | undefined,
@@ -124,6 +134,30 @@ function resolveRequestEndpoint(source: SourceConfig): string {
   return source.endpoint
 }
 
+function readTraceDebugHeaders(response: Response): TraceDebug | null {
+  if (!traceDebugEnabled) {
+    return null
+  }
+
+  const traceparent = response.headers.get('x-otel-traceparent-in') || ''
+  const traceId = response.headers.get('x-otel-trace-id-in') || ''
+  const parentSpanId = response.headers.get('x-otel-parent-span-id-in') || ''
+  const flags = response.headers.get('x-otel-trace-flags-in') || ''
+  const serverTraceId = response.headers.get('x-otel-server-trace-id') || ''
+
+  if (!traceparent && !traceId && !parentSpanId && !flags && !serverTraceId) {
+    return null
+  }
+
+  return {
+    requestTraceparent: traceparent,
+    requestTraceId: traceId,
+    requestParentSpanId: parentSpanId,
+    requestFlags: flags,
+    serverTraceId,
+  }
+}
+
 type ForecastPanelProps = {
   label: string
   endpoint: string
@@ -148,6 +182,26 @@ function ForecastPanel({ label, endpoint, accent, state }: ForecastPanelProps) {
 
       {!state.loading && !state.error ? (
         <div className="forecast-list">
+          {traceDebugEnabled && state.traceDebug ? (
+            <section className="trace-debug">
+              <p className="trace-debug-title">Trace compare</p>
+              <p>
+                traceparent in: <code>{state.traceDebug.requestTraceparent || '<empty>'}</code>
+              </p>
+              <p>
+                trace id in: <code>{state.traceDebug.requestTraceId || '<empty>'}</code>
+              </p>
+              <p>
+                parent span in: <code>{state.traceDebug.requestParentSpanId || '<empty>'}</code>
+              </p>
+              <p>
+                flags in: <code>{state.traceDebug.requestFlags || '<empty>'}</code>
+              </p>
+              <p>
+                server trace id: <code>{state.traceDebug.serverTraceId || '<empty>'}</code>
+              </p>
+            </section>
+          ) : null}
           {state.data.map((record) => (
             <section className="forecast-card" key={`${label}-${record.date}-${record.summary}`}>
               <p className="forecast-date">{formatDate(record.date)}</p>
@@ -163,9 +217,9 @@ function ForecastPanel({ label, endpoint, accent, state }: ForecastPanelProps) {
 
 function App() {
   const [forecastState, setForecastState] = useState<ForecastState>({
-    dotnet: { data: [], error: '', loading: true },
-    python: { data: [], error: '', loading: true },
-    cpp: { data: [], error: '', loading: true },
+    dotnet: { data: [], error: '', loading: true, traceDebug: null },
+    python: { data: [], error: '', loading: true, traceDebug: null },
+    cpp: { data: [], error: '', loading: true, traceDebug: null },
     updatedAt: '',
   })
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true)
@@ -193,7 +247,7 @@ function App() {
       try {
         const entries = Object.entries(sources) as Array<[SourceKey, SourceConfig]>
         const results = await Promise.allSettled(
-          entries.map(async ([key, source]): Promise<[SourceKey, ForecastRecord[]]> => {
+          entries.map(async ([key, source]): Promise<[SourceKey, ForecastRecord[], TraceDebug | null]> => {
             const endpoint = resolveRequestEndpoint(source)
             const response = await fetch(endpoint, { signal: controller.signal })
 
@@ -201,7 +255,11 @@ function App() {
               throw await buildRequestError(response, source.label)
             }
 
-            return [key, (await response.json()) as ForecastRecord[]]
+            return [
+              key,
+              (await response.json()) as ForecastRecord[],
+              readTraceDebugHeaders(response),
+            ]
           }),
         )
 
@@ -227,9 +285,9 @@ function App() {
         const message = error instanceof Error ? error.message : 'Unexpected error while loading data.'
         setForecastState({
           updatedAt: '',
-          dotnet: { data: [], error: message, loading: false },
-          python: { data: [], error: message, loading: false },
-          cpp: { data: [], error: message, loading: false },
+          dotnet: { data: [], error: message, loading: false, traceDebug: null },
+          python: { data: [], error: message, loading: false, traceDebug: null },
+          cpp: { data: [], error: message, loading: false, traceDebug: null },
         })
       } finally {
         isRefreshing = false
@@ -303,7 +361,7 @@ function App() {
 
 function derivePanelState(
   key: SourceKey,
-  results: PromiseSettledResult<[SourceKey, ForecastRecord[]]>[],
+  results: PromiseSettledResult<[SourceKey, ForecastRecord[], TraceDebug | null]>[],
 ): PanelState {
   const sourceKeys = Object.keys(sources) as SourceKey[]
   const index = sourceKeys.indexOf(key)
@@ -319,6 +377,7 @@ function derivePanelState(
       data: [],
       error: reasonMessage ?? `Unable to load ${sources[key].label}`,
       loading: false,
+      traceDebug: null,
     }
   }
 
@@ -326,6 +385,7 @@ function derivePanelState(
     data: result.value[1],
     error: '',
     loading: false,
+    traceDebug: result.value[2],
   }
 }
 

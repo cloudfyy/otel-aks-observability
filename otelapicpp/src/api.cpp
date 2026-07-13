@@ -1,9 +1,12 @@
 #include "otelapicpp/api.h"
 
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <exception>
 #include <iostream>
 #include <map>
+#include <sstream>
 #include <string>
 #include <typeinfo>
 
@@ -27,6 +30,34 @@ namespace otelapicpp
 {
 namespace
 {
+std::string GetHeaderValueCaseInsensitive(const crow::request &request, const std::string &key)
+{
+  auto value = request.get_header_value(key);
+  if (!value.empty())
+  {
+    return value;
+  }
+
+  if (!key.empty())
+  {
+    auto title_key = key;
+    title_key[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(title_key[0])));
+    value = request.get_header_value(title_key);
+    if (!value.empty())
+    {
+      return value;
+    }
+  }
+
+  auto upper_key = key;
+  std::transform(
+      upper_key.begin(),
+      upper_key.end(),
+      upper_key.begin(),
+      [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+  return request.get_header_value(upper_key);
+}
+
 class CrowRequestCarrier : public opentelemetry::context::propagation::TextMapCarrier
 {
 public:
@@ -34,13 +65,19 @@ public:
 
   opentelemetry::nostd::string_view Get(opentelemetry::nostd::string_view key) const noexcept override
   {
-    cached_value_ = request_.get_header_value(std::string(key));
-    if (cached_value_.empty())
+    const auto key_string = std::string(key);
+    auto cached = cached_values_.find(key_string);
+    if (cached == cached_values_.end())
+    {
+      cached = cached_values_.emplace(key_string, GetHeaderValueCaseInsensitive(request_, key_string)).first;
+    }
+
+    if (cached->second.empty())
     {
       return "";
     }
 
-    return cached_value_;
+    return cached->second;
   }
 
   void Set(opentelemetry::nostd::string_view, opentelemetry::nostd::string_view) noexcept override
@@ -50,7 +87,7 @@ public:
 
 private:
   const crow::request &request_;
-  mutable std::string cached_value_;
+  mutable std::map<std::string, std::string> cached_values_;
 };
 
 void AddCorsHeaders(crow::response &response, const std::string &allowed_origins)
@@ -60,12 +97,81 @@ void AddCorsHeaders(crow::response &response, const std::string &allowed_origins
   response.add_header("Access-Control-Allow-Methods", "GET,OPTIONS");
 }
 
+void AddTraceDebugExposeHeaders(crow::response &response)
+{
+  response.add_header(
+      "Access-Control-Expose-Headers",
+      "x-otel-traceparent-in,x-otel-trace-id-in,x-otel-parent-span-id-in,x-otel-trace-flags-in,x-otel-server-trace-id");
+}
+
+struct ParsedTraceparent
+{
+  std::string version;
+  std::string trace_id;
+  std::string parent_span_id;
+  std::string trace_flags;
+};
+
 std::string ToTraceIdHex(const trace_api::TraceId &trace_id)
 {
   std::array<char, trace_api::TraceId::kSize * 2> buffer{};
   trace_id.ToLowerBase16(
       opentelemetry::nostd::span<char, trace_api::TraceId::kSize * 2>(buffer.data(), buffer.size()));
   return std::string(buffer.data(), buffer.size());
+}
+
+ParsedTraceparent ParseTraceparent(const std::string &traceparent)
+{
+  ParsedTraceparent parsed;
+  if (traceparent.empty())
+  {
+    return parsed;
+  }
+
+  std::istringstream stream(traceparent);
+  std::getline(stream, parsed.version, '-');
+  std::getline(stream, parsed.trace_id, '-');
+  std::getline(stream, parsed.parent_span_id, '-');
+  std::getline(stream, parsed.trace_flags, '-');
+  return parsed;
+}
+
+void AttachTraceDebugHeaders(
+    crow::response &response,
+    const crow::request &request,
+    const opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> &span)
+{
+  const auto traceparent_in = GetHeaderValueCaseInsensitive(request, "traceparent");
+  const auto parsed = ParseTraceparent(traceparent_in);
+  const auto server_trace_id = ToTraceIdHex(span->GetContext().trace_id());
+
+  response.add_header("x-otel-traceparent-in", traceparent_in);
+  response.add_header("x-otel-trace-id-in", parsed.trace_id);
+  response.add_header("x-otel-parent-span-id-in", parsed.parent_span_id);
+  response.add_header("x-otel-trace-flags-in", parsed.trace_flags);
+  response.add_header("x-otel-server-trace-id", server_trace_id);
+
+  std::cout << "[Trace Compare] traceparent_in=" << (traceparent_in.empty() ? "<empty>" : traceparent_in)
+            << " trace_id_in=" << (parsed.trace_id.empty() ? "<empty>" : parsed.trace_id)
+            << " parent_span_id_in=" << (parsed.parent_span_id.empty() ? "<empty>" : parsed.parent_span_id)
+            << " flags_in=" << (parsed.trace_flags.empty() ? "<empty>" : parsed.trace_flags)
+            << " server_trace_id=" << server_trace_id
+            << std::endl;
+}
+
+void MaybeAttachTraceDebugHeaders(
+    crow::response &response,
+    const AppConfig &config,
+    const crow::request &request,
+    const opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> &span)
+{
+  if (!config.trace_debug_enabled)
+  {
+    return;
+  }
+
+  AddTraceDebugExposeHeaders(response);
+  AttachTraceDebugHeaders(response, request, span);
 }
 
 std::string ToSpanIdHex(const trace_api::SpanId &span_id)
@@ -77,6 +183,7 @@ std::string ToSpanIdHex(const trace_api::SpanId &span_id)
 }
 
 void EmitApiStartLogAndEvent(
+  const AppConfig &config,
     const opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> &span,
     const crow::request &request,
     const std::string &operation,
@@ -85,7 +192,12 @@ void EmitApiStartLogAndEvent(
   const auto span_context = span->GetContext();
   const auto trace_id = ToTraceIdHex(span_context.trace_id());
   const auto span_id = ToSpanIdHex(span_context.span_id());
-  const auto traceparent = request.get_header_value("traceparent");
+  const auto traceparent = GetHeaderValueCaseInsensitive(request, "traceparent");
+
+  if (!config.trace_debug_enabled)
+  {
+    return;
+  }
 
   std::cout << "[API Start] operation=" << operation
             << " route=" << route
@@ -151,6 +263,7 @@ void RecordException(
 }
 
 opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> StartServerSpan(
+  const AppConfig &config,
     const opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> &tracer,
     const crow::request &request,
     const std::string &span_name,
@@ -168,7 +281,7 @@ opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> StartServerSpan(
   auto span = tracer->StartSpan(span_name, options);
   span->SetAttribute("http.method", crow::method_name(request.method));
   span->SetAttribute("http.route", route);
-  EmitApiStartLogAndEvent(span, request, span_name, route);
+  EmitApiStartLogAndEvent(config, span, request, span_name, route);
 
   return span;
 }
@@ -176,20 +289,23 @@ opentelemetry::nostd::shared_ptr<opentelemetry::trace::Span> StartServerSpan(
 
 void RegisterRoutes(
     crow::SimpleApp &app,
+    const AppConfig &config,
     const std::string &allowed_origins,
     const opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> &tracer)
 {
-  CROW_ROUTE(app, "/health")([tracer](const crow::request &request) {
-    auto span = StartServerSpan(tracer, request, "GET /health", "/health");
+  CROW_ROUTE(app, "/health")([tracer, config](const crow::request &request) {
+    auto span = StartServerSpan(config, tracer, request, "GET /health", "/health");
     trace_api::Scope scope(span);
 
+    crow::response response(200, "ok");
+    MaybeAttachTraceDebugHeaders(response, config, request, span);
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
     span->End();
-    return crow::response(200, "ok");
+    return response;
   });
 
-  CROW_ROUTE(app, "/weatherforecast")([tracer, allowed_origins](const crow::request &request) {
-    auto span = StartServerSpan(tracer, request, "GET /weatherforecast", "/weatherforecast");
+  CROW_ROUTE(app, "/weatherforecast")([tracer, allowed_origins, config](const crow::request &request) {
+    auto span = StartServerSpan(config, tracer, request, "GET /weatherforecast", "/weatherforecast");
     trace_api::Scope scope(span);
 
     crow::response response(200);
@@ -209,12 +325,14 @@ void RegisterRoutes(
       response.body = R"({"message":"Unexpected error while building weather forecast."})";
     }
 
+    MaybeAttachTraceDebugHeaders(response, config, request, span);
     span->End();
     return response;
   });
 
-  CROW_ROUTE(app, "/weatherforecast/throw-custom-exception")([tracer, allowed_origins](const crow::request &request) {
+  CROW_ROUTE(app, "/weatherforecast/throw-custom-exception")([tracer, allowed_origins, config](const crow::request &request) {
     auto span = StartServerSpan(
+        config,
         tracer,
         request,
         "GET /weatherforecast/throw-custom-exception",
@@ -237,12 +355,14 @@ void RegisterRoutes(
       response.body = nlohmann::json({{"message", ex.what()}}).dump();
     }
 
+    MaybeAttachTraceDebugHeaders(response, config, request, span);
     span->End();
     return response;
   });
 
-  CROW_ROUTE(app, "/weatherforecast/throw-and-catch-exception")([tracer, allowed_origins](const crow::request &request) {
+  CROW_ROUTE(app, "/weatherforecast/throw-and-catch-exception")([tracer, allowed_origins, config](const crow::request &request) {
     auto span = StartServerSpan(
+        config,
         tracer,
         request,
         "GET /weatherforecast/throw-and-catch-exception",
@@ -264,6 +384,7 @@ void RegisterRoutes(
     AddCorsHeaders(response, allowed_origins);
     response.body = R"({"message":"Exception was thrown, caught, and printed to console.","handled":true})";
 
+    MaybeAttachTraceDebugHeaders(response, config, request, span);
     span->End();
     return response;
   });

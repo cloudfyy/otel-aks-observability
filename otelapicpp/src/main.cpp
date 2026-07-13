@@ -12,7 +12,7 @@ int main()
   auto tracer = otelapicpp::GetTracer();
 
   crow::SimpleApp app;
-  otelapicpp::RegisterRoutes(app, config.allowed_origins, tracer);
+  otelapicpp::RegisterRoutes(app, config, config.allowed_origins, tracer);
 
   std::cout << "Starting otelapicpp on port " << config.port << std::endl;
   app.port(static_cast<uint16_t>(config.port)).multithreaded().run();

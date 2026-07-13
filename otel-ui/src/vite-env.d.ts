@@ -10,6 +10,7 @@ interface ImportMetaEnv {
   readonly VITE_OTEL_ENVIRONMENT_NAME?: string
   readonly VITE_OTEL_IGNORE_URLS?: string
   readonly VITE_OTEL_PROPAGATE_TRACE_HEADER_URLS?: string
+  readonly VITE_TRACE_DEBUG_ENABLED?: string
 }
 
 interface ImportMeta {

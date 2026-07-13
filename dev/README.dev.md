@@ -16,6 +16,7 @@
 - otel-ui-otlp-service.yaml：同 namespace OTLP 代理 Service（ExternalName，指向 `observability` 中的 Collector）。
 - ingress-security-template.dev.yaml：Ingress 安全模板（限流 + 常见扫描路径拦截）。
 - certmgr-test.yaml：cert-manager 功能测试清单（开发验证用途）。
+- release-notes.dev.md：开发环境发布记录（版本变更与部署结果）。
 - README.dev.md：当前中文开发部署说明。
 - README.dev.en.md：英文开发部署说明。
 

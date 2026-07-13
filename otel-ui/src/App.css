@@ -111,6 +111,27 @@
   gap: 0.9rem;
 }
 
+.trace-debug {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px dashed rgba(53, 44, 28, 0.24);
+}
+
+.trace-debug-title {
+  margin: 0;
+  font-family: var(--heading);
+  color: var(--heading-color);
+}
+
+.trace-debug p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .forecast-card {
   display: grid;
   gap: 0.35rem;
