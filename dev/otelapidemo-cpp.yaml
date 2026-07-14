@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: otelapidemo-cpp
-          image: <ACR_LOGIN_SERVER>/otelapicpp:1.0.12
+          image: <ACR_LOGIN_SERVER>/otelapicpp:1.0.13
           imagePullPolicy: Always
           ports:
             - containerPort: 8082
@@ -33,7 +33,7 @@ spec:
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: service.namespace=apps-dev,service.version=1.0.12,deployment.environment.name=dev
+              value: service.namespace=apps-dev,service.version=1.0.13,deployment.environment.name=dev
           resources:
             requests:
               cpu: 100m

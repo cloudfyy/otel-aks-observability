@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(otelapicpp VERSION 1.0.12 LANGUAGES CXX)
+project(otelapicpp VERSION 1.0.13 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -86,3 +86,23 @@ link_first_existing_target(otelapicpp
     opentelemetry-cpp::opentelemetry_exporter_otlp_http_log
     opentelemetry::exporter_otlp_http_log
 )
+
+set(OTLP_HTTP_METRIC_EXPORTER_CANDIDATES
+  opentelemetry-cpp::otlp_http_metric_exporter
+  opentelemetry-cpp::opentelemetry_exporter_otlp_http_metric
+  opentelemetry::exporter_otlp_http_metric
+)
+
+set(otlp_metric_exporter_linked FALSE)
+foreach(candidate IN LISTS OTLP_HTTP_METRIC_EXPORTER_CANDIDATES)
+  if(TARGET ${candidate})
+    target_link_libraries(otelapicpp PRIVATE ${candidate})
+    message(STATUS "Linked otelapicpp with ${candidate}")
+    set(otlp_metric_exporter_linked TRUE)
+    break()
+  endif()
+endforeach()
+
+if(NOT otlp_metric_exporter_linked)
+  message(WARNING "OTLP HTTP metric exporter target not found. API metric export may be disabled.")
+endif()

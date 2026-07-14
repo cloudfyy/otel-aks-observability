@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <chrono>
 #include <exception>
 #include <iostream>
 #include <map>
@@ -174,6 +175,13 @@ void MaybeAttachTraceDebugHeaders(
   AttachTraceDebugHeaders(response, request, span);
 }
 
+double GetElapsedMilliseconds(const std::chrono::steady_clock::time_point &start_time)
+{
+  return std::chrono::duration<double, std::milli>(
+             std::chrono::steady_clock::now() - start_time)
+      .count();
+}
+
 std::string ToSpanIdHex(const trace_api::SpanId &span_id)
 {
   std::array<char, trace_api::SpanId::kSize * 2> buffer{};
@@ -294,17 +302,20 @@ void RegisterRoutes(
     const opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> &tracer)
 {
   CROW_ROUTE(app, "/health")([tracer, config](const crow::request &request) {
+    const auto request_start = std::chrono::steady_clock::now();
     auto span = StartServerSpan(config, tracer, request, "GET /health", "/health");
     trace_api::Scope scope(span);
 
     crow::response response(200, "ok");
     MaybeAttachTraceDebugHeaders(response, config, request, span);
+    RecordApiRequestMetrics("GET /health", "/health", crow::method_name(request.method), response.code, GetElapsedMilliseconds(request_start));
     span->SetStatus(opentelemetry::trace::StatusCode::kOk);
     span->End();
     return response;
   });
 
   CROW_ROUTE(app, "/weatherforecast")([tracer, allowed_origins, config](const crow::request &request) {
+    const auto request_start = std::chrono::steady_clock::now();
     auto span = StartServerSpan(config, tracer, request, "GET /weatherforecast", "/weatherforecast");
     trace_api::Scope scope(span);
 
@@ -326,11 +337,13 @@ void RegisterRoutes(
     }
 
     MaybeAttachTraceDebugHeaders(response, config, request, span);
+    RecordApiRequestMetrics("GET /weatherforecast", "/weatherforecast", crow::method_name(request.method), response.code, GetElapsedMilliseconds(request_start));
     span->End();
     return response;
   });
 
   CROW_ROUTE(app, "/weatherforecast/throw-custom-exception")([tracer, allowed_origins, config](const crow::request &request) {
+    const auto request_start = std::chrono::steady_clock::now();
     auto span = StartServerSpan(
         config,
         tracer,
@@ -356,11 +369,18 @@ void RegisterRoutes(
     }
 
     MaybeAttachTraceDebugHeaders(response, config, request, span);
+    RecordApiRequestMetrics(
+        "GET /weatherforecast/throw-custom-exception",
+        "/weatherforecast/throw-custom-exception",
+        crow::method_name(request.method),
+        response.code,
+        GetElapsedMilliseconds(request_start));
     span->End();
     return response;
   });
 
   CROW_ROUTE(app, "/weatherforecast/throw-and-catch-exception")([tracer, allowed_origins, config](const crow::request &request) {
+    const auto request_start = std::chrono::steady_clock::now();
     auto span = StartServerSpan(
         config,
         tracer,
@@ -385,15 +405,23 @@ void RegisterRoutes(
     response.body = R"({"message":"Exception was thrown, caught, and printed to console.","handled":true})";
 
     MaybeAttachTraceDebugHeaders(response, config, request, span);
+    RecordApiRequestMetrics(
+        "GET /weatherforecast/throw-and-catch-exception",
+        "/weatherforecast/throw-and-catch-exception",
+        crow::method_name(request.method),
+        response.code,
+        GetElapsedMilliseconds(request_start));
     span->End();
     return response;
   });
 
-  CROW_ROUTE(app, "/<path>")([allowed_origins](const std::string &) {
+  CROW_ROUTE(app, "/<path>")([allowed_origins](const crow::request &request, const std::string &) {
+    const auto request_start = std::chrono::steady_clock::now();
     crow::response response(404);
     AddCorsHeaders(response, allowed_origins);
     response.set_header("Content-Type", "application/json");
     response.body = R"({"message":"Not found"})";
+    RecordApiRequestMetrics("UNMATCHED ROUTE", "/<path>", crow::method_name(request.method), response.code, GetElapsedMilliseconds(request_start));
     return response;
   });
 }
