@@ -26,13 +26,21 @@
 
 #if __has_include(<opentelemetry/exporters/otlp/otlp_http_metric_exporter_factory.h>) && \
   __has_include(<opentelemetry/exporters/otlp/otlp_http_metric_exporter_options.h>) && \
-  __has_include(<opentelemetry/sdk/metrics/meter_provider.h>) && \
-  __has_include(<opentelemetry/sdk/metrics/periodic_exporting_metric_reader_factory.h>)
-#define OTELAPICPP_HAS_OTLP_METRICS_EXPORTER 1
+  __has_include(<opentelemetry/sdk/metrics/meter_provider.h>)
 #include <opentelemetry/exporters/otlp/otlp_http_metric_exporter_factory.h>
 #include <opentelemetry/exporters/otlp/otlp_http_metric_exporter_options.h>
 #include <opentelemetry/sdk/metrics/meter_provider.h>
+
+#if __has_include(<opentelemetry/sdk/metrics/export/periodic_exporting_metric_reader_factory.h>)
+#define OTELAPICPP_HAS_OTLP_METRICS_EXPORTER 1
+#include <opentelemetry/sdk/metrics/export/periodic_exporting_metric_reader_factory.h>
+#elif __has_include(<opentelemetry/sdk/metrics/periodic_exporting_metric_reader_factory.h>)
+#define OTELAPICPP_HAS_OTLP_METRICS_EXPORTER 1
 #include <opentelemetry/sdk/metrics/periodic_exporting_metric_reader_factory.h>
+#else
+#define OTELAPICPP_HAS_OTLP_METRICS_EXPORTER 0
+#endif
+
 #else
 #define OTELAPICPP_HAS_OTLP_METRICS_EXPORTER 0
 #endif
@@ -173,9 +181,10 @@ void InitMeterProvider(const AppConfig &config)
       std::move(metric_exporter),
       metric_reader_options);
 
-  auto meter_provider = std::shared_ptr<metrics_sdk::MeterProvider>(new metrics_sdk::MeterProvider);
+  auto *meter_provider = new metrics_sdk::MeterProvider;
   meter_provider->AddMetricReader(std::move(metric_reader));
-  metrics_api::Provider::SetMeterProvider(meter_provider);
+  metrics_api::Provider::SetMeterProvider(
+      opentelemetry::nostd::shared_ptr<metrics_api::MeterProvider>(meter_provider));
 #else
   (void)config;
 #endif
