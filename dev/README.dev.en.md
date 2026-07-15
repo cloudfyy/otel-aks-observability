@@ -4,7 +4,7 @@
 
 ## Files
 
-- otel-gateway-myvalues.yaml: primary Collector values for development (single-collector).
+- otel-gateway-myvalues.yaml: primary Gateway Collector values for development (deployment mode).
 - inst-crd-dotnet.yaml: .NET auto-instrumentation CRD.
 - inst-crd-python.yaml: Python auto-instrumentation CRD.
 - otelapidemo-dotnet.yaml: .NET sample app manifest.
@@ -41,7 +41,7 @@ flowchart LR
   end
 
   subgraph Obs[observability]
-    Collector[Collector]
+    Collector[Gateway Collector\nDeployment]
     Azure[Azure Monitor / App Insights]
   end
 
@@ -56,7 +56,7 @@ flowchart LR
   Collector --> Azure
 ```
 
-Browser OTLP uses the same-namespace `otel-ui-otlp-proxy` Service to reach the Collector in `observability`, which keeps the browser endpoint same-origin while respecting Kubernetes ingress scoping.
+Browser OTLP uses the same-namespace `otel-ui-otlp-proxy` Service to reach the Gateway Collector (Deployment) in `observability`, which keeps the browser endpoint same-origin while respecting Kubernetes ingress scoping.
 
 ## Prerequisites
 
@@ -71,7 +71,7 @@ Browser OTLP uses the same-namespace `otel-ui-otlp-proxy` Service to reach the C
 2. Install or upgrade OpenTelemetry Operator and verify it is healthy.
 3. Check whether `connection_string` in `otel-gateway-myvalues.yaml` is still a placeholder, and replace it with a real value first.
 4. Apply the RBAC required for the collector to read Kubernetes metadata.
-5. Deploy or upgrade single collector (development mode).
+5. Deploy or upgrade the Gateway Collector (deployment mode).
 6. Apply Instrumentation CRDs.
 7. Check whether `<ACR_LOGIN_SERVER>` in the application manifests is still a placeholder, and replace it with a real value first.
 8. Deploy the `.NET`, Python, and React UI sample applications.
@@ -98,7 +98,7 @@ grep -q 'connection_string: "<APP_INSIGHTS_CONNECTION_STRING>"' ./dev/otel-gatew
 # 4) Apply RBAC required by k8sattributes
 kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
 
-# 5) Deploy single collector (release name: otel-collector)
+# 5) Deploy Gateway Collector (deployment, release name: otel-collector)
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
   -n observability --create-namespace \
   -f ./dev/otel-gateway-myvalues.yaml
@@ -174,7 +174,7 @@ kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get deploy,svc,ingress -n apps-dev
 
-# 11) Collector pipeline counters (single collector)
+# 11) Collector pipeline counters (Gateway Collector)
 pod=$(kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}')
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   grep -E "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
@@ -198,7 +198,7 @@ if (Select-String -Path ./dev/otel-gateway-myvalues.yaml -Pattern 'connection_st
 # 4) Apply RBAC required by k8sattributes
 kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
 
-# 5) Deploy single collector (release name: otel-collector)
+# 5) Deploy Gateway Collector (deployment, release name: otel-collector)
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
   -n observability --create-namespace `
   -f ./dev/otel-gateway-myvalues.yaml
@@ -272,21 +272,21 @@ kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get deploy,svc,ingress -n apps-dev
 
-# 11) Collector pipeline counters (single collector)
+# 11) Collector pipeline counters (Gateway Collector)
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
-# 12) Verify whether file_log receiver is working (container log collection)
+# 12) Verify log pipeline (OTLP) and k8s attribute enrichment
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 
-# 12.1 Confirm file_log receiver is loaded in startup/runtime logs
+# 12.1 Confirm otlp receiver and k8sattributes processor are loaded in startup/runtime logs
 kubectl logs -n observability $pod --tail=200 |
-  Select-String -Pattern "file_log|stanza"
+  Select-String -Pattern "receiver.*otlp|processor.*k8s_attributes"
 
-# 12.2 Check file_log receiver counters from collector self-metrics
+# 12.2 Check otlp log receiver counters from collector self-metrics
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
-  Select-String -Pattern 'otelcol_receiver_accepted_log_records.*receiver="file_log"|otelcol_receiver_refused_log_records.*receiver="file_log"'
+  Select-String -Pattern 'otelcol_receiver_accepted_log_records.*receiver="otlp"|otelcol_receiver_refused_log_records.*receiver="otlp"'
 
 # 12.3 Inspect K8s container-log metadata in collected records (sample)
 kubectl logs -n observability $pod --tail=200 |
@@ -309,10 +309,10 @@ metadata:
 
 ## Notes
 
-- This development baseline uses a single collector deployment.
+- This development baseline uses a Gateway Collector deployment.
 - Current dev values include debug and azuremonitor exporters for troubleshooting.
 - The current dev collector enables the `k8sattributes` processor to append `k8s.*` resource attributes automatically, while application-side `OTEL_RESOURCE_ATTRIBUTES` continues to hold static labels such as environment.
-- The current dev collector enables the `file_log` receiver to collect container log files from nodes (`/var/log/pods/.../*.log`).
+- The current dev collector ingests logs through the `otlp` receiver only and no longer uses `file_log` to read node log files.
 - Development now exposes a unified ingress entrypoint: `/` serves the React UI, `/dotnet/*` routes to the .NET API, `/python/*` routes to the Python API, and `/cpp/*` routes to the C++ API.
 - `dev/deploy-apps.ps1` and `dev/deploy-apps.sh` deploy the `.NET`, Python, and React UI apps together with both ingress resources.
 - Current development image baseline: `.NET`=`1.0.4`, Python=`1.0.4`, UI=`1.0.1`.

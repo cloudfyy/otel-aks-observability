@@ -1,4 +1,4 @@
-mode: daemonset
+mode: deployment
 image:
   repository: otel/opentelemetry-collector-contrib
 
@@ -16,17 +16,6 @@ ports:
   zipkin:
     enabled: false
 
-extraVolumes:
-  - name: varlogpods
-    hostPath:
-      path: /var/log/pods
-      type: Directory
-
-extraVolumeMounts:
-  - name: varlogpods
-    mountPath: /var/log/pods
-    readOnly: true
-
 config:
   receivers:
     otlp:
@@ -35,29 +24,6 @@ config:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
-    file_log:
-      include:
-        - /var/log/pods/*/*/*.log
-      exclude:
-        - /var/log/pods/observability_*/*/*.log
-      start_at: end
-      include_file_path: true
-      operators:
-        - type: regex_parser
-          parse_from: attributes["log.file.path"]
-          regex: '^/var/log/pods/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<pod_uid>[0-9a-fA-F-]+)/(?P<container_name>[^/]+)/(?P<restart_count>\d+)\.log$'
-        - type: move
-          from: attributes.namespace
-          to: resource["k8s.namespace.name"]
-        - type: move
-          from: attributes.pod_name
-          to: resource["k8s.pod.name"]
-        - type: move
-          from: attributes.pod_uid
-          to: resource["k8s.pod.uid"]
-        - type: move
-          from: attributes.container_name
-          to: resource["k8s.container.name"]
 
   processors:
     memory_limiter:
@@ -68,6 +34,8 @@ config:
       auth_type: serviceAccount
       passthrough: false
       pod_association:
+        - sources:
+            - from: connection
         - sources:
             - from: resource_attribute
               name: k8s.pod.uid
@@ -103,6 +71,6 @@ config:
         processors: [memory_limiter, k8s_attributes, batch]
         exporters: [debug, azuremonitor]
       logs:
-        receivers: [otlp, file_log]
+        receivers: [otlp]
         processors: [memory_limiter, k8s_attributes, batch]
         exporters: [azuremonitor]

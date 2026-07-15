@@ -4,7 +4,7 @@
 
 ## 文件清单
 
-- otel-gateway-myvalues.yaml：当前开发主用的 Collector values（单 Collector）。
+- otel-gateway-myvalues.yaml：当前开发主用的 Gateway Collector values（Deployment 模式）。
 - inst-crd-dotnet.yaml：.NET 自动注入 Instrumentation CRD。
 - inst-crd-python.yaml：Python 自动注入 Instrumentation CRD。
 - otelapidemo-dotnet.yaml：.NET 示例应用部署清单。
@@ -41,7 +41,7 @@ flowchart LR
   end
 
   subgraph Obs[observability]
-    Collector[Collector]
+    Collector[Gateway Collector\nDeployment]
     Azure[Azure Monitor / App Insights]
   end
 
@@ -56,7 +56,7 @@ flowchart LR
   Collector --> Azure
 ```
 
-说明：浏览器端 OTLP 通过同 namespace 的 `otel-ui-otlp-proxy` 代理 Service 转发到 `observability` 命名空间里的 Collector，这样既满足 Ingress backend 的作用域限制，也保持了同源 `/otlp/*` 入口。
+说明：浏览器端 OTLP 通过同 namespace 的 `otel-ui-otlp-proxy` 代理 Service 转发到 `observability` 命名空间里的 Gateway Collector（Deployment），这样既满足 Ingress backend 的作用域限制，也保持了同源 `/otlp/*` 入口。
 
 ## 前置条件
 
@@ -71,7 +71,7 @@ flowchart LR
 2. 安装或升级 OpenTelemetry Operator，并确认状态正常。
 3. 检查 `otel-gateway-myvalues.yaml` 中的 `connection_string` 是否仍为占位符，并先替换为真实值。
 4. 应用 Collector 读取 Kubernetes 元数据所需的 RBAC。
-5. 部署或升级单 Collector（开发模式）。
+5. 部署或升级 Gateway Collector（Deployment，开发模式）。
 6. 应用 Instrumentation CRD。
 7. 检查应用清单中的 `<ACR_LOGIN_SERVER>` 是否仍为占位符，并先替换为真实值。
 8. 部署 `.NET`、Python 与 React UI 示例应用。
@@ -110,7 +110,7 @@ grep -q 'connection_string: "<APP_INSIGHTS_CONNECTION_STRING>"' ./dev/otel-gatew
 # 4) 应用 k8sattributes 所需 RBAC
 kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
 
-# 5) 部署单 Collector（release 名称：otel-collector）
+# 5) 部署 Gateway Collector（Deployment，release 名称：otel-collector）
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
   -n observability --create-namespace \
   -f ./dev/otel-gateway-myvalues.yaml
@@ -186,7 +186,7 @@ kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get deploy,svc,ingress -n apps-dev
 
-# 11) Collector 管道计数器（单 Collector）
+# 11) Collector 管道计数器（Gateway Collector）
 pod=$(kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}')
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   grep -E "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
@@ -210,7 +210,7 @@ if (Select-String -Path ./dev/otel-gateway-myvalues.yaml -Pattern 'connection_st
 # 4) 应用 k8sattributes 所需 RBAC
 kubectl apply -f ./dev/otel-collector-k8sattributes-rbac.yaml
 
-# 5) 部署单 Collector（release 名称：otel-collector）
+# 5) 部署 Gateway Collector（Deployment，release 名称：otel-collector）
 helm upgrade --install otel-collector open-telemetry/opentelemetry-collector `
   -n observability --create-namespace `
   -f ./dev/otel-gateway-myvalues.yaml
@@ -304,21 +304,21 @@ kubectl get deploy -n observability
 kubectl get instrumentation -n observability
 kubectl get deploy,svc,ingress -n apps-dev
 
-# 11) Collector 管道计数器（单 Collector）
+# 11) Collector 管道计数器（Gateway Collector）
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
   Select-String -Pattern "otelcol_receiver_accepted_spans|otelcol_exporter_sent_spans|otelcol_receiver_accepted_log_records|otelcol_exporter_sent_log_records|otelcol_receiver_accepted_metric_points|otelcol_exporter_sent_metric_points"
 
-# 12) 查看 file_log 接收器是否在工作（容器日志采集）
+# 12) 查看日志管道（OTLP）与 k8s 属性补齐是否在工作
 $pod = kubectl get pods -n observability -l app.kubernetes.io/instance=otel-collector -o jsonpath='{.items[0].metadata.name}'
 
-# 12.1 启动日志中确认 file_log 接收器已加载
+# 12.1 启动日志中确认 otlp 接收器与 k8sattributes processor 已加载
 kubectl logs -n observability $pod --tail=200 |
-  Select-String -Pattern "file_log|stanza"
+  Select-String -Pattern "receiver.*otlp|processor.*k8s_attributes"
 
-# 12.2 通过 Collector 自身 metrics 查看 file_log 接收计数
+# 12.2 通过 Collector 自身 metrics 查看 otlp 日志接收计数
 kubectl get --raw "/api/v1/namespaces/observability/pods/${pod}:8888/proxy/metrics" |
-  Select-String -Pattern 'otelcol_receiver_accepted_log_records.*receiver="file_log"|otelcol_receiver_refused_log_records.*receiver="file_log"'
+  Select-String -Pattern 'otelcol_receiver_accepted_log_records.*receiver="otlp"|otelcol_receiver_refused_log_records.*receiver="otlp"'
 
 # 12.3 查看采集到的 K8s 容器日志元数据（示例）
 kubectl logs -n observability $pod --tail=200 |
@@ -341,10 +341,10 @@ metadata:
 
 ## 说明
 
-- 当前开发基线采用单 Collector 部署。
+- 当前开发基线采用 Gateway Collector（Deployment）部署。
 - 现有 dev values 同时包含 debug 与 azuremonitor exporter，便于联调与排障。
 - 当前 dev Collector 已启用 `k8sattributes` processor，用于自动补充 `k8s.*` 资源属性；应用侧 `OTEL_RESOURCE_ATTRIBUTES` 继续保留环境等静态标签。
-- 当前 dev Collector 已启用 `file_log` 接收器采集节点上的容器日志文件（`/var/log/pods/.../*.log`）。
+- 当前 dev Collector 日志仅通过 `otlp` 接收器进入管道，不再启用 `file_log` 读取节点文件日志。
 - 当前开发环境通过统一 Ingress 对外暴露：`/` 对应 React UI，`/dotnet/*` 转发到 `.NET` API，`/python/*` 转发到 Python API，`/cpp/*` 转发到 C++ API。
 - `dev/deploy-apps.ps1` 与 `dev/deploy-apps.sh` 会同时部署 `.NET`、Python、React UI，以及两个 Ingress 资源。
 - 当前开发示例镜像版本基线：`.NET`=`1.0.4`，Python=`1.0.4`，UI=`1.0.3`。
