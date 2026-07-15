@@ -37,3 +37,28 @@
 - Cluster image verification:
   - `otelapidemo-cpp => qiqiacr.azurecr.io/otelapicpp:1.0.12`
   - `otel-ui => qiqiacr.azurecr.io/otel-ui:1.0.9`
+
+## 2026-07-16
+
+### Release Scope
+
+- Environment: `observability` (Collector)
+- Component: `otel-collector` (Helm release)
+
+### Key Changes
+
+- Switched dev Collector deployment mode from `daemonset` to Gateway style (`deployment`).
+- Removed `file_log` receiver and node log path mounts; log ingestion is now OTLP-only.
+- Added `connection` as the primary source in `k8s_attributes.pod_association`.
+- Updated dev documentation and architecture diagrams to align with Gateway Collector terminology.
+
+### Azure Monitor Configuration
+
+- `dev/otel-gateway-myvalues.yaml` keeps the `"<APP_INSIGHTS_CONNECTION_STRING>"` placeholder to avoid committing plaintext secrets.
+- Actual deployment injects a valid `azuremonitor.connection_string` via Helm override and verifies it at runtime.
+
+### Deployment
+
+- Deploy command (equivalent): `helm upgrade --install otel-collector ... -f ./dev/otel-gateway-myvalues.yaml --set-string config.exporters.azuremonitor.connection_string=<REDACTED>`
+- Upgrade result: `otel-collector` revision `8`, status `deployed`.
+- Rollout verification: `deployment/otel-collector-opentelemetry-collector` successfully rolled out.
