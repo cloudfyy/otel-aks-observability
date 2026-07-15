@@ -36,11 +36,11 @@ spec:
               value: service.namespace=apps-dev,service.version=1.0.15,deployment.environment.name=dev
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 25m
+              memory: 32Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 200m
+              memory: 128Mi
           readinessProbe:
             tcpSocket:
               port: 8082

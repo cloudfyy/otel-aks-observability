@@ -34,11 +34,11 @@ spec:
               value: service.namespace=apps-prod,service.version=1.0.13,deployment.environment.name=prod
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 25m
+              memory: 32Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 200m
+              memory: 128Mi
           readinessProbe:
             tcpSocket:
               port: 8082
